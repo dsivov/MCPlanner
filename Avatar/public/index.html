@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPT-Realtime Talking Avatar</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js/+esm",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+      "talkinghead": "https://cdn.jsdelivr.net/gh/met4citizen/TalkingHead@1.7/modules/talkinghead.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="avatar"></div>
+
+  <!-- Hidden element actually plays the GPT-Realtime audio; we tap it for lip-sync. -->
+  <audio id="oaiAudio" autoplay></audio>
+
+  <!-- Test report + spoken sentence, pinned to the top of the page. -->
+  <div id="topbar">
+    <div id="cue" class="cue"></div>
+    <div id="subtitle"></div>
+  </div>
+
+  <div id="panel">
+    <div id="buttons">
+      <button id="connect">🎙️ Start talking</button>
+      <button id="test" class="secondary">🎬 Test all</button>
+    </div>
+    <div id="picker-row">
+      <select id="picker" title="Every available action"></select>
+      <label class="mirror"><input type="checkbox" id="mirror" /> mirror</label>
+      <button id="play" class="secondary">▶ Play</button>
+    </div>
+    <div id="status">Loading avatar…</div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

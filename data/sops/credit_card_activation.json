@@ -1,0 +1,134 @@
+{
+  "name": "Credit Card Activation",
+  "description": "Bank outbound agent persuades a verified cardholder to activate a newly-issued credit card. Based on the credit-card activation example in Hu et al. 2024 (PCA).",
+  "user_profile": {
+    "name": "Card recipient",
+    "description": "A retail-bank customer who has been mailed a new credit card. May or may not be the cardholder. May be busy, skeptical, or already interested.",
+    "demographics": {"segment": "retail banking", "channel": "outbound phone"}
+  },
+  "conversation_profile": {
+    "agent_role": "Outbound bank representative for ACME Bank",
+    "goal": "Activate the customer's newly issued credit card during this call.",
+    "success_markers": ["AgreedToActivate"],
+    "failure_markers": ["HardDecline", "WrongPerson"],
+    "knowledge": "Activation requires confirming the cardholder's identity. The card has a $0 annual fee for the first year and 2% cashback on groceries. Activation can be completed verbally."
+  },
+  "agent_actions": [
+    {"name": "Greeting",            "description": "Open the call and identify the bank and yourself."},
+    {"name": "VerifyIdentity",      "description": "Confirm you are speaking with the named cardholder.",
+     "data_dependencies": ["customer_account"]},
+    {"name": "StateReason",         "description": "Explain the call is about activating their new credit card."},
+    {"name": "PitchActivation",     "description": "Make the case for activating now (benefits, ease).",
+     "data_dependencies": ["customer_account", "tailored_offer"]},
+    {"name": "HandleObjection",     "description": "Address a concern the user raised (cost, security, time).",
+     "data_dependencies": ["competitor_compare", "tailored_offer"]},
+    {"name": "RequestActivation",   "description": "Ask for explicit consent to activate the card now.",
+     "data_dependencies": ["activation_template"]},
+    {"name": "ConfirmActivation",   "description": "Confirm activation completed and thank the user.",
+     "data_dependencies": ["activation_template"]},
+    {"name": "ScheduleCallback",    "description": "Offer to call back at a better time."},
+    {"name": "ClosePolite",         "description": "End the call politely without activation."}
+  ],
+  "data_dependencies": [
+    {"name": "customer_account",    "description": "Core banking DB: card status, balance, statement history, KYC flags.",
+     "kind": "db", "expected_latency_ms": 3500, "cache_ttl_s": 300, "idempotent": true,
+     "config": {"text": "ACCT: Jane Doe; DOB 1985-07-22; status=mailed 2026-04-12; last4=4242; bal=$0; credit_line=$8000; KYC=verified; mailing_zip=02118"}},
+    {"name": "tailored_offer",      "description": "CRM personalization API: best-fit activation incentive for this segment.",
+     "kind": "api", "expected_latency_ms": 4200, "cache_ttl_s": 300, "idempotent": true,
+     "config": {"text": "OFFER: tier=Platinum; $0 annual fee year-1, 2% grocery cashback, 0% APR for 12mo on purchases, $200 sign-up bonus if spend $1k in 90d"}},
+    {"name": "competitor_compare",  "description": "Market-rates KG: 3-hop traversal over competitor card products + reward structures.",
+     "kind": "kg", "expected_latency_ms": 4800, "cache_ttl_s": 600, "idempotent": true,
+     "config": {"text": "COMPETITORS: Chase Sapphire(2.0% groc, $95 fee, 60k SUB), Citi DoubleCash(1.5% all, $0 fee), Amex Everyday(2.0% groc cap $6k/yr, $0 fee)"}},
+    {"name": "activation_template", "description": "Compliance doc cache: legal disclosure script + verbal consent capture template.",
+     "kind": "mock", "expected_latency_ms": 600, "cache_ttl_s": 1800, "idempotent": true,
+     "config": {"text": "ACTIVATION SCRIPT: 1) confirm full legal name + DOB; 2) read REG-Z disclosure (CFPB 2023); 3) capture verbal consent timestamp; 4) trigger card activation API"}}
+  ],
+  "cohorts": [
+    {"name": "Cardholder",       "description": "Confirmed cardholder picks up; SOP can proceed normally.",
+     "moods": [
+       {"name": "eager_to_activate","description": "Has been waiting for the card; ready to confirm immediately.",     "prior": 0.40},
+       {"name": "routine_acceptance","description": "Treats activation as a mundane task; complies without question.", "prior": 0.35},
+       {"name": "mildly_curious",   "description": "Open to hearing about the card's benefits before committing.",     "prior": 0.20},
+       {"name": "second_thoughts",  "description": "Confirmed identity but wonders if they really want the card.",     "prior": 0.05}
+     ]},
+    {"name": "WrongPerson",      "description": "Someone other than the cardholder is on the line.",
+     "moods": [
+       {"name": "helpful_relative","description": "Family member or roommate; willing to take a message.",             "prior": 0.55},
+       {"name": "guarded",         "description": "Wary of giving any info about the cardholder.",                     "prior": 0.30},
+       {"name": "irritated_misdial","description": "Annoyed by the call; wants it to end quickly.",                    "prior": 0.15}
+     ]},
+    {"name": "Interested",       "description": "Cardholder is open to activating, no significant objections.",
+     "moods": [
+       {"name": "enthusiastic",   "description": "Excited about the perks; leaning into the conversation.",            "prior": 0.45},
+       {"name": "matter_of_fact", "description": "Treats it as a transaction; minimal small talk.",                    "prior": 0.40},
+       {"name": "curious_perks",  "description": "Asking about rewards, signup bonus, APR before agreeing.",           "prior": 0.15}
+     ]},
+    {"name": "Skeptical",        "description": "Cardholder is cautious / asking many questions / suspicious of the call.",
+     "moods": [
+       {"name": "fraud_suspicious","description": "Worried this is a scam; wants to verify the bank's identity.",      "prior": 0.40},
+       {"name": "fine_print_aware","description": "Asks about hidden fees, APR after intro period, late penalties.",   "prior": 0.35},
+       {"name": "decision_anxious","description": "Wants to think it over; resistant to closing on this call.",         "prior": 0.25}
+     ]},
+    {"name": "PriceSensitive",   "description": "Cardholder is focused on fees, rates, or perceived costs.",
+     "moods": [
+       {"name": "fee_focused",      "description": "Annual fee is the entire conversation.",                            "prior": 0.45},
+       {"name": "value_calculator", "description": "Doing math on whether rewards offset costs.",                       "prior": 0.30},
+       {"name": "comparison_shopping","description": "Has competitor cards open; weighing benefits side-by-side.",      "prior": 0.20},
+       {"name": "regret_signup",    "description": "Regrets having applied; resistant to activating.",                  "prior": 0.05}
+     ]},
+    {"name": "Hurried",          "description": "Cardholder says they're busy or want to be called back.",
+     "moods": [
+       {"name": "polite_busy",       "description": "Will engage if it's <2 minutes; otherwise asks for callback.",     "prior": 0.50},
+       {"name": "annoyed_interruption","description": "Mild irritation at the call timing.",                            "prior": 0.30},
+       {"name": "performative_busy", "description": "Says busy but will engage if the offer is compelling.",            "prior": 0.20}
+     ]},
+    {"name": "Hostile",          "description": "Cardholder is annoyed or hostile; high failure risk.",
+     "moods": [
+       {"name": "indignant",       "description": "Believes they were sent the card without consent; angry.",           "prior": 0.40},
+       {"name": "cold_dismissive", "description": "Curt; will hang up if pushed.",                                      "prior": 0.35},
+       {"name": "venting",         "description": "Has unrelated grievances about the bank; vents during the call.",    "prior": 0.25}
+     ]}
+  ],
+  "user_states": [
+    {"name": "Unknown",          "description": "No information yet about who picked up."},
+    {"name": "IsThemselves",     "description": "User confirmed they are the cardholder."},
+    {"name": "WrongPerson",      "description": "User is not the cardholder."},
+    {"name": "Interested",       "description": "User is open to hearing the pitch or activating."},
+    {"name": "Objecting",        "description": "User raised a concern (cost, time, security)."},
+    {"name": "AgreedToActivate", "description": "User explicitly agreed to activate now (SUCCESS)."},
+    {"name": "HardDecline",      "description": "User refused firmly (FAILURE)."},
+    {"name": "Busy",             "description": "User wants to be called back later."}
+  ],
+  "strategies": [
+    {"name": "Identify",     "description": "Open the call, confirm we're speaking with the cardholder.",
+     "member_actions": ["Greeting", "VerifyIdentity"]},
+    {"name": "Disclose",     "description": "Disclose the reason for the call once identity is confirmed.",
+     "member_actions": ["StateReason"]},
+    {"name": "Persuade",     "description": "Pitch activation benefits and handle any objections the user raises.",
+     "member_actions": ["PitchActivation", "HandleObjection"]},
+    {"name": "Close",        "description": "Ask for activation, confirm completion, or politely terminate.",
+     "member_actions": ["RequestActivation", "ConfirmActivation", "ClosePolite", "ScheduleCallback"]}
+  ],
+  "sop": {
+    "nodes": [
+      "Greeting","VerifyIdentity","StateReason","PitchActivation","HandleObjection",
+      "RequestActivation","ConfirmActivation","ScheduleCallback","ClosePolite",
+      "Unknown","IsThemselves","WrongPerson","Interested","Objecting",
+      "AgreedToActivate","HardDecline","Busy"
+    ],
+    "edges": [
+      {"src": "Greeting",          "dst": "VerifyIdentity",    "direction": "forward", "note": "Must greet before verifying."},
+      {"src": "VerifyIdentity",    "dst": "StateReason",       "direction": "forward", "note": "Must verify before disclosing purpose."},
+      {"src": "IsThemselves",      "dst": "StateReason",       "direction": "forward", "note": "Only state reason once identity is confirmed."},
+      {"src": "StateReason",       "dst": "PitchActivation",   "direction": "forward"},
+      {"src": "StateReason",       "dst": "RequestActivation", "direction": "forward"},
+      {"src": "Objecting",         "dst": "HandleObjection",   "direction": "forward", "note": "Only handle an objection that was raised."},
+      {"src": "PitchActivation",   "dst": "RequestActivation", "direction": "forward"},
+      {"src": "RequestActivation", "dst": "ConfirmActivation", "direction": "forward"},
+      {"src": "AgreedToActivate",  "dst": "ConfirmActivation", "direction": "forward", "note": "Only confirm after explicit agreement."},
+      {"src": "WrongPerson",       "dst": "ClosePolite",       "direction": "forward"},
+      {"src": "Busy",              "dst": "ScheduleCallback",  "direction": "forward"},
+      {"src": "HardDecline",       "dst": "ClosePolite",       "direction": "forward"}
+    ]
+  }
+}

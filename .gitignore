@@ -1,0 +1,40 @@
+# --- secrets (NEVER commit) ---
+.env
+.env.local
+*/.env
+# keep the templates
+!.env.example
+!*/.env.example
+# self-signed dev certs / private keys
+certs/
+*.pem
+
+# --- python ---
+.venv/
+__pycache__/
+*.pyc
+
+# --- node / frontend ---
+node_modules/
+dist/
+
+# --- data (research DB; large, regenerated locally) ---
+data/planner.db
+data/*.db
+
+# --- LaTeX build artifacts ---
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+
+# --- editors / OS / tooling ---
+.DS_Store
+.vscode/
+.idea/
+.claude/

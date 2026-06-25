@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 720 510" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SOP transition graph with data dependencies and happy path">
+  <defs>
+    <marker id="arr-grey-sop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a4b4cf"/></marker>
+    <marker id="arr-happy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4632c"/></marker>
+    <linearGradient id="happy-node-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff5ec"/>
+      <stop offset="100%" stop-color="#fbe7d6"/>
+    </linearGradient>
+  </defs>
+
+  <text x="360" y="22" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#5a6071">CAR-INSURANCE RENEWAL — TRANSITION GRAPH</text>
+  <text x="360" y="40" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-style="italic" fill="#5a6071">action nodes · user-state labels on edges · data-dep badges · one happy-path trajectory in coral</text>
+
+  <!-- Non-happy edges (light grey, drawn first so happy-path overlays) -->
+  <g stroke="#a4b4cf" stroke-width="1.5" fill="none">
+    <!-- E3: StateReason → AskLifeChanges (branch: NoChanges/Interested) -->
+    <path d="M 470 90 Q 470 135 445 175" marker-end="url(#arr-grey-sop)"/>
+    <!-- E6: AskLifeChanges → PitchDiscount -->
+    <path d="M 435 220 Q 410 270 380 305" marker-end="url(#arr-grey-sop)"/>
+    <!-- E7: PitchDiscount → HandlePriceObjection (branch: PriceConcern) -->
+    <path d="M 280 345 Q 215 385 165 410" marker-end="url(#arr-grey-sop)"/>
+    <!-- E9: HandlePriceObjection → CloseRenewal (recovery path: AgreedToRenew) -->
+    <path d="M 230 430 Q 365 470 500 432" marker-end="url(#arr-grey-sop)"/>
+  </g>
+
+  <!-- HAPPY PATH edges (coral, thicker, drawn after grey so on top) -->
+  <g stroke="#c4632c" stroke-width="2.5" fill="none">
+    <path d="M 170 65 L 198 65" marker-end="url(#arr-happy)"/>
+    <path d="M 330 65 L 378 65" marker-end="url(#arr-happy)"/>
+    <!-- StateReason → ReviewCurrentCoverage -->
+    <path d="M 420 90 Q 360 135 230 175" marker-end="url(#arr-happy)"/>
+    <!-- ReviewCurrentCoverage → PitchDiscount -->
+    <path d="M 230 220 Q 260 270 310 305" marker-end="url(#arr-happy)"/>
+    <!-- PitchDiscount → CloseRenewal (happy: Interested) -->
+    <path d="M 430 330 Q 480 380 520 412" marker-end="url(#arr-happy)"/>
+  </g>
+
+  <!-- User-state labels on edges (teal) -->
+  <g font-family="-apple-system,sans-serif" font-size="10.5" fill="#2c8485" font-weight="600">
+    <text x="280" y="130" text-anchor="middle">ReportingChange</text>
+    <text x="498" y="135" text-anchor="middle">Interested</text>
+    <text x="180" y="377" text-anchor="middle">PriceConcern</text>
+    <text x="490" y="358" text-anchor="middle" fill="#c4632c">Interested ★</text>
+    <text x="360" y="454" text-anchor="middle">AgreedToRenew</text>
+  </g>
+
+  <!-- Action nodes -->
+  <!-- Happy-path nodes get gradient fill + thicker coral stroke; others stay navy on white. -->
+  <g font-family="-apple-system,sans-serif" font-size="12" font-weight="700">
+    <!-- Greeting (happy) -->
+    <rect x="40"  y="50" width="130" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="105" y="70" text-anchor="middle" fill="#a04f1c">Greeting</text>
+    <!-- VerifyIdentity (happy) -->
+    <rect x="200" y="50" width="130" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="265" y="70" text-anchor="middle" fill="#a04f1c">VerifyIdentity</text>
+    <!-- StateReason (happy) -->
+    <rect x="380" y="50" width="130" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="445" y="70" text-anchor="middle" fill="#a04f1c">StateReason</text>
+
+    <!-- ReviewCurrentCoverage (happy) -->
+    <rect x="130" y="175" width="200" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="230" y="195" text-anchor="middle" fill="#a04f1c">ReviewCurrentCoverage</text>
+
+    <!-- AskLifeChanges (alt path, navy) -->
+    <rect x="350" y="175" width="170" height="30" rx="6" fill="#fff" stroke="#2a4a7f" stroke-width="1.5"/>
+    <text x="435" y="195" text-anchor="middle" fill="#2a4a7f">AskLifeChanges</text>
+
+    <!-- PitchDiscount (happy) -->
+    <rect x="260" y="305" width="170" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="345" y="325" text-anchor="middle" fill="#a04f1c">PitchDiscount</text>
+
+    <!-- HandlePriceObjection (recovery, navy) -->
+    <rect x="60"  y="410" width="170" height="30" rx="6" fill="#fff" stroke="#2a4a7f" stroke-width="1.5"/>
+    <text x="145" y="430" text-anchor="middle" fill="#2a4a7f">HandlePriceObjection</text>
+
+    <!-- CloseRenewal (happy, with ✓) -->
+    <rect x="500" y="410" width="170" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="585" y="430" text-anchor="middle" fill="#a04f1c">CloseRenewal ✓</text>
+  </g>
+
+  <!-- Data-dep badges (mauve chips placed adjacent to their action) -->
+  <g font-family="SF Mono,Menlo,Consolas,monospace" font-size="9.5" fill="#6a4f8a">
+    <!-- VerifyIdentity → policy_lookup -->
+    <rect x="208" y="86" width="92" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="254" y="98" text-anchor="middle">policy_lookup</text>
+    <!-- ReviewCurrentCoverage → coverage, claims -->
+    <rect x="138" y="211" width="94" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="185" y="223" text-anchor="middle">coverage_data</text>
+    <rect x="238" y="211" width="92" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="284" y="223" text-anchor="middle">claims_history</text>
+    <!-- PitchDiscount → discounts, market -->
+    <rect x="268" y="341" width="74" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="305" y="353" text-anchor="middle">discounts</text>
+    <rect x="348" y="341" width="84" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="390" y="353" text-anchor="middle">market_quotes</text>
+    <!-- HandlePriceObjection → discount_eligibility -->
+    <rect x="68" y="446" width="118" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="127" y="458" text-anchor="middle">discount_eligibility</text>
+  </g>
+
+  <!-- Legend (bottom) -->
+  <g font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">
+    <line x1="40"  y1="488" x2="78"  y2="488" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="84"  y="492">happy path</text>
+    <line x1="180" y1="488" x2="218" y2="488" stroke="#a4b4cf" stroke-width="1.5"/>
+    <text x="224" y="492">branch / recovery</text>
+    <rect x="340" y="481" width="64" height="14" rx="3" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="1.5"/>
+    <text x="412" y="492">agent action</text>
+    <text x="498" y="492" fill="#2c8485" font-weight="600">user-state label</text>
+    <rect x="614" y="481" width="50" height="14" rx="7" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="639" y="491" text-anchor="middle" font-family="SF Mono,monospace" font-size="9" fill="#6a4f8a">data dep</text>
+  </g>
+</svg>

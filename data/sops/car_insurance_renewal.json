@@ -1,0 +1,154 @@
+{
+  "name": "Car Insurance Renewal",
+  "description": "Auto insurer outbound agent renews a customer's expiring auto policy. Verifies identity, reviews coverage changes, addresses premium concerns, and confirms renewal.",
+  "user_profile": {
+    "name": "Policyholder",
+    "description": "An existing auto-insurance customer whose policy is about to expire. Often price-sensitive, may have had a change in circumstances (new vehicle, address, drivers), and may shop competitors.",
+    "demographics": {"segment": "personal auto insurance", "channel": "outbound phone"}
+  },
+  "conversation_profile": {
+    "agent_role": "Renewal specialist at SafeWay Auto Insurance",
+    "goal": "Renew the customer's auto policy for the next term, ideally without coverage downgrades.",
+    "success_markers": ["AgreedToRenew"],
+    "failure_markers": ["HardDecline", "WrongPerson"],
+    "knowledge": "Renewal must be confirmed with the named policyholder. Premium adjustments may reflect zip code, claims history, or coverage changes. Discounts available: bundling (-10%), telematics (-15%), defensive-driving course (-5%). Loyalty bonus after 3 consecutive renewals."
+  },
+  "agent_actions": [
+    {"name": "Greeting",             "description": "Open the call, identify SafeWay and yourself."},
+    {"name": "VerifyIdentity",       "description": "Confirm you are speaking with the named policyholder (name + DOB or policy #).",
+     "data_dependencies": ["policy_record"]},
+    {"name": "StateReason",          "description": "Explain the call is about renewing the expiring auto policy."},
+    {"name": "ReviewCurrentCoverage","description": "Walk through current coverage, deductibles, and renewal premium.",
+     "data_dependencies": ["policy_record", "claims_history_rag"]},
+    {"name": "AskLifeChanges",       "description": "Ask if anything changed (new car, new driver, address, mileage)."},
+    {"name": "PitchDiscount",        "description": "Offer applicable discounts (bundling, telematics, defensive-driving, loyalty).",
+     "data_dependencies": ["risk_score_api", "discount_eligibility", "policy_record"]},
+    {"name": "HandlePriceObjection", "description": "Address premium-too-high concerns; offer comparison or alternative coverage.",
+     "data_dependencies": ["market_rates_kg", "discount_eligibility"]},
+    {"name": "HandleCoverageObjection","description": "Address coverage concerns or recommended changes.",
+     "data_dependencies": ["claims_history_rag"]},
+    {"name": "RequestRenewal",       "description": "Explicitly ask the policyholder to confirm renewal.",
+     "data_dependencies": ["risk_score_api", "policy_record"]},
+    {"name": "ConfirmRenewal",       "description": "Confirm renewal completed, summarize next-payment date, thank the customer.",
+     "data_dependencies": ["policy_record", "policy_disclosure_cache"]},
+    {"name": "ScheduleCallback",     "description": "Offer to call back at a more convenient time."},
+    {"name": "EscalateToAgent",      "description": "Transfer to a licensed agent for complex changes."},
+    {"name": "ClosePolite",          "description": "End the call politely without renewal.",
+     "data_dependencies": ["policy_disclosure_cache"]}
+  ],
+  "data_dependencies": [
+    {"name": "policy_record",          "description": "Policy management DB: current policy, deductibles, premium, expiry date, vehicle, named drivers.",
+     "kind": "db", "expected_latency_ms": 3000, "cache_ttl_s": 300, "idempotent": true,
+     "config": {"text": "POLICY: #INS-882431; expires 2026-06-15; vehicle=2022 Honda Civic LX VIN 1HG..2890; named drivers=1; deductible=$500 collision/$250 comp; premium=$1420/yr; tenure=4yr"}},
+    {"name": "claims_history_rag",     "description": "RAG over claim documents: recent claims, fault assignments, payouts, narrative summaries.",
+     "kind": "rag", "expected_latency_ms": 3800, "cache_ttl_s": 600, "idempotent": true,
+     "config": {"text": "CLAIMS: 0 at-fault (3yr); 1 comprehensive 2024-09 (windshield, $720 paid, deductible $250); 1 not-at-fault 2023-04 (rear-ended, full subro recovery); driver rating tier=Preferred",
+                "corpus": "car_insurance_renewal/corpus.jsonl", "top_k": 3},
+     "query_template": "{mood} customer in cohort {cohort} (state {state}) considering action {action} just said: {user_text}. What claims-history facts, fault-assignment rules, or coverage-decision precedents would help the agent respond?"},
+    {"name": "risk_score_api",         "description": "Actuarial ML scoring service: telematics-derived risk + projected loss ratio.",
+     "kind": "api", "expected_latency_ms": 5500, "cache_ttl_s": 900, "idempotent": true,
+     "config": {"text": "RISK: composite_score=712/1000 (band=low); telematics avg=72mph, max=86mph, harsh_braking=0.3/100mi; usage=11.4k mi/yr (below 15k threshold); projected_loss_ratio=0.41"}},
+    {"name": "market_rates_kg",        "description": "Market-rates knowledge graph: competitor premiums for matching vehicle+zip+driver profile.",
+     "kind": "kg", "expected_latency_ms": 4200, "cache_ttl_s": 1800, "idempotent": true,
+     "config": {"text": "MARKET (same zip+vehicle+age band): peer_avg=$1580/yr; Geico $1510 ($-90 vs ours), Progressive $1620 (+$20), StateFarm $1490 ($-70); ranking: we are 2nd-cheapest of 4"}},
+    {"name": "discount_eligibility",   "description": "Promotions API: real-time eligibility for discount stacking and loyalty offers.",
+     "kind": "api", "expected_latency_ms": 2800, "cache_ttl_s": 300, "idempotent": true,
+     "config": {"text": "DISCOUNTS: multi-policy=8% (eligible — has homeowner), paid-in-full=5%, good-driver=10% (auto-applied), telematics=12% (auto-applied), 4yr-loyalty=3%; total stackable=18%"}},
+    {"name": "policy_disclosure_cache","description": "Compliance docs cache: state-specific disclosures + cancellation terms.",
+     "kind": "mock", "expected_latency_ms": 400, "cache_ttl_s": 3600, "idempotent": true,
+     "config": {"text": "DISCLOSURE (MA): 14-day free-look cancellation; policy effective immediately on renewal acceptance; e-sign capture required; auto-billing cycle next on 2026-07-15"}}
+  ],
+  "cohorts": [
+    {"name": "LoyalCustomer",    "description": "Multi-year customer who renews routinely; low effort to close.",
+     "moods": [
+       {"name": "warm_routine",      "description": "Friendly, expects the call, ready to move quickly.",          "prior": 0.45},
+       {"name": "mildly_curious",    "description": "Open to hearing what's new or different this year.",          "prior": 0.30},
+       {"name": "distracted",        "description": "Multitasking; wants to get the call done.",                   "prior": 0.20},
+       {"name": "subtly_resistant",  "description": "Loyal but considering alternatives; testing the relationship.","prior": 0.05}
+     ]},
+    {"name": "PriceShopper",     "description": "Currently comparing competitor quotes; price-sensitive.",
+     "moods": [
+       {"name": "calm_negotiator",        "description": "Analytical; treating this as a procurement exercise.",       "prior": 0.40},
+       {"name": "frustrated_with_quotes", "description": "Has spent hours on this; feels each call wastes time.",      "prior": 0.30},
+       {"name": "indifferent_to_brand",   "description": "Sees insurance as commodity; lowest price wins.",            "prior": 0.20},
+       {"name": "skeptical_of_value",     "description": "Suspicious that premium increases aren't justified.",        "prior": 0.10}
+     ]},
+    {"name": "LifeChange",       "description": "Reports a recent change (new vehicle, driver, address) that affects coverage.",
+     "moods": [
+       {"name": "transactional",   "description": "Just wants to update the policy and move on.",                      "prior": 0.45},
+       {"name": "anxious_about_cost","description": "Worried the change will push their premium up.",                  "prior": 0.30},
+       {"name": "informational",   "description": "Asking lots of questions about how the change affects coverage.",   "prior": 0.20},
+       {"name": "stressed_general","description": "Going through a stressful period (move/divorce/job); low patience.","prior": 0.05}
+     ]},
+    {"name": "CoverageConcerned","description": "Worried about gaps, limits, deductibles, or claim handling.",
+     "moods": [
+       {"name": "due_diligence",        "description": "Methodically going through coverage line by line.",            "prior": 0.45},
+       {"name": "post_claim_skeptical", "description": "Recent claim experience colors the conversation.",             "prior": 0.30},
+       {"name": "fearful_underinsured", "description": "Worried they don't have enough; receptive to upsell.",         "prior": 0.20},
+       {"name": "frustrated_complexity","description": "Annoyed by policy jargon; wants plain answers.",               "prior": 0.05}
+     ]},
+    {"name": "Skeptical",        "description": "Questions the value of insurance overall or this carrier specifically.",
+     "moods": [
+       {"name": "philosophical",   "description": "Debates the necessity of coverage; intellectual sparring.",         "prior": 0.40},
+       {"name": "cynical",         "description": "Assumes carriers nickel-and-dime; expects bad faith.",              "prior": 0.30},
+       {"name": "burned_before",   "description": "Has had a bad past experience and isn't over it.",                  "prior": 0.20},
+       {"name": "curious_open",    "description": "Pushes back but listens — can be persuaded with hard data.",        "prior": 0.10}
+     ]},
+    {"name": "Hurried",          "description": "Insists they're busy or wants a callback.",
+     "moods": [
+       {"name": "polite_busy",     "description": "Will engage briefly if it's quick; otherwise asks for a callback.", "prior": 0.50},
+       {"name": "annoyed_intrusion","description": "Doesn't want to talk now; mild irritation.",                       "prior": 0.30},
+       {"name": "performative_busy","description": "Says they're busy but will engage if the offer is compelling.",    "prior": 0.20}
+     ]},
+    {"name": "WrongPerson",      "description": "Not the policyholder.",
+     "moods": [
+       {"name": "helpful_relative","description": "Lives with the policyholder; can pass along a message.",            "prior": 0.55},
+       {"name": "annoyed_stranger","description": "Wrong number; wants the call to end.",                              "prior": 0.30},
+       {"name": "confused",        "description": "Unsure who the named policyholder is or why the call came here.",   "prior": 0.15}
+     ]}
+  ],
+  "user_states": [
+    {"name": "Unknown",          "description": "No information yet about who picked up."},
+    {"name": "IsThemselves",     "description": "Confirmed identity as the named policyholder."},
+    {"name": "WrongPerson",      "description": "Not the policyholder."},
+    {"name": "Interested",       "description": "Open to hearing the offer."},
+    {"name": "PriceConcern",     "description": "Objecting that premium is too high."},
+    {"name": "CoverageConcern",  "description": "Objecting about coverage limits, deductibles, or exclusions."},
+    {"name": "ReportingChange",  "description": "User mentioned a change in vehicle, address, or drivers."},
+    {"name": "Shopping",         "description": "User says they're comparing competitors."},
+    {"name": "AgreedToRenew",    "description": "User explicitly agreed to renew (SUCCESS)."},
+    {"name": "HardDecline",      "description": "User refuses to renew (FAILURE)."},
+    {"name": "Busy",             "description": "User wants to be called back later."}
+  ],
+  "sop": {
+    "nodes": [
+      "Greeting","VerifyIdentity","StateReason","ReviewCurrentCoverage","AskLifeChanges",
+      "PitchDiscount","HandlePriceObjection","HandleCoverageObjection",
+      "RequestRenewal","ConfirmRenewal","ScheduleCallback","EscalateToAgent","ClosePolite",
+      "Unknown","IsThemselves","WrongPerson","Interested","PriceConcern","CoverageConcern",
+      "ReportingChange","Shopping","AgreedToRenew","HardDecline","Busy"
+    ],
+    "edges": [
+      {"src": "Greeting",              "dst": "VerifyIdentity",         "direction": "forward", "note": "Greet before verifying."},
+      {"src": "VerifyIdentity",        "dst": "StateReason",            "direction": "forward", "note": "Verify before disclosing the reason for call."},
+      {"src": "IsThemselves",          "dst": "StateReason",            "direction": "forward"},
+      {"src": "StateReason",           "dst": "ReviewCurrentCoverage",  "direction": "forward"},
+      {"src": "StateReason",           "dst": "AskLifeChanges",         "direction": "forward"},
+      {"src": "ReviewCurrentCoverage", "dst": "PitchDiscount",          "direction": "forward"},
+      {"src": "AskLifeChanges",        "dst": "PitchDiscount",          "direction": "forward"},
+      {"src": "ReportingChange",       "dst": "HandleCoverageObjection","direction": "forward", "note": "If user reports a change, address coverage implications."},
+      {"src": "PriceConcern",          "dst": "HandlePriceObjection",   "direction": "forward", "note": "Only handle a price concern that was raised."},
+      {"src": "CoverageConcern",       "dst": "HandleCoverageObjection","direction": "forward"},
+      {"src": "Shopping",              "dst": "PitchDiscount",          "direction": "forward"},
+      {"src": "PitchDiscount",         "dst": "RequestRenewal",         "direction": "forward"},
+      {"src": "HandlePriceObjection",  "dst": "RequestRenewal",         "direction": "forward"},
+      {"src": "HandleCoverageObjection","dst": "RequestRenewal",        "direction": "forward"},
+      {"src": "RequestRenewal",        "dst": "ConfirmRenewal",         "direction": "forward"},
+      {"src": "AgreedToRenew",         "dst": "ConfirmRenewal",         "direction": "forward", "note": "Only confirm after explicit agreement."},
+      {"src": "WrongPerson",           "dst": "ClosePolite",            "direction": "forward"},
+      {"src": "Busy",                  "dst": "ScheduleCallback",       "direction": "forward"},
+      {"src": "HardDecline",           "dst": "ClosePolite",            "direction": "forward"},
+      {"src": "CoverageConcern",       "dst": "EscalateToAgent",        "direction": "forward", "note": "Complex coverage changes escalate to a licensed agent."}
+    ]
+  }
+}

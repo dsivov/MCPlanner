@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MCTS rollout structure">
+  <defs>
+    <marker id="arr-mcts" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6a4f8a"/></marker>
+  </defs>
+  <text x="360" y="20" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#6a4f8a">MCTS ROLLOUT TREE — current turn t</text>
+
+  <!-- root -->
+  <ellipse cx="360" cy="55" rx="80" ry="20" fill="#e8e0f0" stroke="#6a4f8a" stroke-width="2"/>
+  <text x="360" y="60" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" fill="#6a4f8a">history + state</text>
+
+  <!-- depth 1: 3 candidate actions -->
+  <g stroke="#6a4f8a" stroke-width="1.5" fill="none" stroke-opacity="0.8">
+    <line x1="320" y1="74" x2="160" y2="120" marker-end="url(#arr-mcts)"/>
+    <line x1="360" y1="74" x2="360" y2="120" marker-end="url(#arr-mcts)"/>
+    <line x1="400" y1="74" x2="560" y2="120" marker-end="url(#arr-mcts)"/>
+  </g>
+  <g font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600">
+    <rect x="80" y="125" width="160" height="32" rx="4" fill="#fff" stroke="#6a4f8a"/><text x="160" y="146" text-anchor="middle" fill="#6a4f8a">action: OfferDiscounts</text>
+    <rect x="280" y="125" width="160" height="32" rx="4" fill="#fff" stroke="#6a4f8a"/><text x="360" y="146" text-anchor="middle" fill="#6a4f8a">action: DiscussPricing</text>
+    <rect x="480" y="125" width="160" height="32" rx="4" fill="#fff" stroke="#6a4f8a"/><text x="560" y="146" text-anchor="middle" fill="#6a4f8a">action: VerifyCoverage</text>
+  </g>
+
+  <!-- depth 2: each action expands to 4 parallel rollouts (one per mood draw) -->
+  <text x="20" y="195" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.05em" fill="#5a6071">4 ROLLOUTS PER ACTION</text>
+  <g font-family="-apple-system,sans-serif" font-size="10" fill="#1f2330">
+    <!-- left action's 4 rollouts -->
+    <rect x="80"  y="200" width="40" height="40" rx="3" fill="#fbe7d6"/><text x="100" y="217" text-anchor="middle" fill="#c4632c">calm</text><text x="100" y="232" text-anchor="middle" fill="#5a6071">+0.8</text>
+    <rect x="120" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="140" y="217" text-anchor="middle" fill="#c4632c">frust</text><text x="140" y="232" text-anchor="middle" fill="#5a6071">+0.3</text>
+    <rect x="160" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="180" y="217" text-anchor="middle" fill="#c4632c">skep</text><text x="180" y="232" text-anchor="middle" fill="#5a6071">+0.6</text>
+    <rect x="200" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.5"/><text x="220" y="217" text-anchor="middle" fill="#c4632c">indif</text><text x="220" y="232" text-anchor="middle" fill="#5a6071">+0.4</text>
+    <!-- middle action's 4 rollouts -->
+    <rect x="280" y="200" width="40" height="40" rx="3" fill="#fbe7d6"/><text x="300" y="217" text-anchor="middle" fill="#c4632c">calm</text><text x="300" y="232" text-anchor="middle" fill="#5a6071">+0.5</text>
+    <rect x="320" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="340" y="217" text-anchor="middle" fill="#c4632c">frust</text><text x="340" y="232" text-anchor="middle" fill="#5a6071">-0.2</text>
+    <rect x="360" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="380" y="217" text-anchor="middle" fill="#c4632c">skep</text><text x="380" y="232" text-anchor="middle" fill="#5a6071">+0.2</text>
+    <rect x="400" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.5"/><text x="420" y="217" text-anchor="middle" fill="#c4632c">indif</text><text x="420" y="232" text-anchor="middle" fill="#5a6071">+0.3</text>
+    <!-- right action's 4 rollouts -->
+    <rect x="480" y="200" width="40" height="40" rx="3" fill="#fbe7d6"/><text x="500" y="217" text-anchor="middle" fill="#c4632c">calm</text><text x="500" y="232" text-anchor="middle" fill="#5a6071">+0.1</text>
+    <rect x="520" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="540" y="217" text-anchor="middle" fill="#c4632c">frust</text><text x="540" y="232" text-anchor="middle" fill="#5a6071">-0.4</text>
+    <rect x="560" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="580" y="217" text-anchor="middle" fill="#c4632c">skep</text><text x="580" y="232" text-anchor="middle" fill="#5a6071">+0.0</text>
+    <rect x="600" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.5"/><text x="620" y="217" text-anchor="middle" fill="#c4632c">indif</text><text x="620" y="232" text-anchor="middle" fill="#5a6071">+0.1</text>
+  </g>
+
+  <!-- score row -->
+  <g font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">
+    <line x1="80" y1="252" x2="240" y2="252" stroke="#5a6071"/>
+    <line x1="280" y1="252" x2="440" y2="252" stroke="#5a6071"/>
+    <line x1="480" y1="252" x2="640" y2="252" stroke="#5a6071"/>
+    <text x="160" y="270" text-anchor="middle" font-weight="700" fill="#2f7a3d">avg +0.53</text>
+    <text x="360" y="270" text-anchor="middle">avg +0.20</text>
+    <text x="560" y="270" text-anchor="middle">avg -0.05</text>
+  </g>
+  <text x="360" y="298" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-style="italic" fill="#5a6071">→ pick OfferDiscounts (best expected reward across mood draws)</text>
+</svg>

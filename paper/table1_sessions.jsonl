@@ -1,0 +1,10 @@
+[{"id":"00269effc368","sop_name":"Car Insurance Renewal","terminal_outcome":"success","turns":8,"mean_turn_ms":6344.0,"mean_rerank_ms":227.0},
+{"id":"1449d2ae6a4d","sop_name":"Car Insurance Renewal","terminal_outcome":"success","turns":19,"mean_turn_ms":6806.0,"mean_rerank_ms":303.0},
+{"id":"556ca60f90d8","sop_name":"Virtual Medical Assistant — Book Doctor Appointment","terminal_outcome":"success","turns":7,"mean_turn_ms":4247.0,"mean_rerank_ms":292.0},
+{"id":"5b260ff9da23","sop_name":"Car Insurance Renewal","terminal_outcome":"success","turns":9,"mean_turn_ms":11419.0,"mean_rerank_ms":288.0},
+{"id":"84e9b82f656c","sop_name":"Virtual Medical Assistant — Book Doctor Appointment","terminal_outcome":"success","turns":8,"mean_turn_ms":4796.0,"mean_rerank_ms":281.0},
+{"id":"93db81b6ae15","sop_name":"Virtual Medical Assistant — Book Doctor Appointment","terminal_outcome":"success","turns":14,"mean_turn_ms":4829.0,"mean_rerank_ms":303.0},
+{"id":"93fb24ea56bd","sop_name":"Virtual Medical Assistant — Book Doctor Appointment","terminal_outcome":"success","turns":17,"mean_turn_ms":4430.0,"mean_rerank_ms":328.0},
+{"id":"b55d78ecbf91","sop_name":"Virtual Medical Assistant — Book Doctor Appointment","terminal_outcome":"success","turns":14,"mean_turn_ms":5118.0,"mean_rerank_ms":295.0},
+{"id":"de4c2a12da6b","sop_name":"Car Insurance Renewal","terminal_outcome":"success","turns":11,"mean_turn_ms":6351.0,"mean_rerank_ms":259.0},
+{"id":"e11c8c295150","sop_name":"Car Insurance Renewal","terminal_outcome":"success","turns":13,"mean_turn_ms":6954.0,"mean_rerank_ms":351.0}]

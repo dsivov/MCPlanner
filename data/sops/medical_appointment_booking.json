@@ -1,0 +1,155 @@
+{
+  "name": "Virtual Medical Assistant — Book Doctor Appointment",
+  "description": "Patient-facing virtual assistant for a medical clinic. Books an appointment with the right type of clinician based on the patient's reason for the visit. Triages emergencies and avoids medical advice.",
+  "user_profile": {
+    "name": "Patient",
+    "description": "An existing or prospective patient contacting the clinic to book an appointment. May be uncertain about which kind of clinician they need, may describe symptoms vaguely, and occasionally describes a true emergency.",
+    "demographics": {"segment": "outpatient clinic", "channel": "inbound chat or phone"}
+  },
+  "conversation_profile": {
+    "agent_role": "Virtual scheduling assistant at Riverside Medical Group",
+    "goal": "Book the right appointment with the right clinician at a time the patient can attend.",
+    "success_markers": ["AppointmentBooked"],
+    "failure_markers": ["DroppedOff", "Escalated911"],
+    "knowledge": "Available specialties: family medicine, internal medicine, pediatrics, dermatology, women's health. Do NOT give medical advice or diagnoses. If symptoms suggest an emergency (chest pain, difficulty breathing, stroke signs, suicidal ideation), instruct the patient to call 911 immediately. Verify name, date of birth, and insurance before booking. Telehealth is available for most non-emergency concerns."
+  },
+  "agent_actions": [
+    {"name": "Greeting",              "description": "Open the conversation and introduce yourself as the virtual scheduling assistant."},
+    {"name": "AskReasonForVisit",     "description": "Ask the patient why they want to see a clinician.",
+     "data_dependencies": ["symptom_kg"]},
+    {"name": "EmergencyTriage",       "description": "If symptoms suggest an emergency, instruct the patient to call 911 immediately and stop scheduling.",
+     "data_dependencies": ["emergency_protocols_cache"]},
+    {"name": "DeclineMedicalAdvice",  "description": "Politely decline to give medical advice; explain you can only help with scheduling."},
+    {"name": "VerifyIdentity",        "description": "Collect patient name and date of birth.",
+     "data_dependencies": ["patient_record"]},
+    {"name": "VerifyInsurance",       "description": "Ask about insurance provider and member ID.",
+     "data_dependencies": ["insurance_eligibility_api"]},
+    {"name": "ConfirmReturningPatient","description": "Confirm whether the patient has been seen at the clinic before.",
+     "data_dependencies": ["patient_record"]},
+    {"name": "RecommendSpecialty",    "description": "Suggest the appropriate specialty (e.g. family medicine, dermatology) based on the reason.",
+     "data_dependencies": ["symptom_kg", "clinical_guidelines_rag", "patient_record"]},
+    {"name": "OfferTelehealth",       "description": "Offer a telehealth option when appropriate.",
+     "data_dependencies": ["clinician_availability"]},
+    {"name": "ProposeTimes",          "description": "Propose two or three available appointment slots.",
+     "data_dependencies": ["clinician_availability"]},
+    {"name": "HandleSchedulingObjection","description": "Address concerns about timing, location, or clinician availability.",
+     "data_dependencies": ["clinician_availability"]},
+    {"name": "ConfirmAppointment",    "description": "Confirm the chosen slot and provide booking details.",
+     "data_dependencies": ["patient_record"]},
+    {"name": "SendConfirmation",      "description": "Tell the patient how they will receive the confirmation (SMS/email)."},
+    {"name": "ClosePolite",           "description": "End the conversation politely."}
+  ],
+  "data_dependencies": [
+    {"name": "patient_record",            "description": "EMR/MRN DB: demographics, allergies, last visit, primary care provider, problem list.",
+     "kind": "db", "expected_latency_ms": 3200, "cache_ttl_s": 300, "idempotent": true,
+     "config": {"text": "PATIENT: Maria Chen DOB 1987-03-14; MRN 7748332; last visit 2025-11-04 with PCP Dr.Patel (annual physical, normal); allergies=penicillin (anaphylaxis 2019); active problems: well-controlled asthma"}},
+    {"name": "insurance_eligibility_api", "description": "Payer eligibility API (third party): coverage status, copay, deductible, pre-auth requirements.",
+     "kind": "api", "expected_latency_ms": 6500, "cache_ttl_s": 1800, "idempotent": true,
+     "config": {"text": "INSURANCE: BlueCross PPO #BCN-22-4488; status=active through 2026-12-31; copay=$35 specialist / $20 PCP; deductible $1500 (60% met YTD); pre-auth NOT required for in-network specialty visits"}},
+    {"name": "symptom_kg",                "description": "Clinical knowledge graph: symptom-cluster → specialty + differential diagnosis mapping.",
+     "kind": "kg", "expected_latency_ms": 4500, "cache_ttl_s": 3600, "idempotent": true,
+     "config": {"text": "MAPPING: persistent cough (>3wk) + chest tightness → primary=Pulmonology, secondary=Cardiology (rule out CHF), tertiary=Allergy/Immunology; red flags to screen: hemoptysis, weight loss, night sweats"}},
+    {"name": "clinician_availability",    "description": "Scheduling API: open slots across clinicians + telehealth windows for the next 14 days.",
+     "kind": "api", "expected_latency_ms": 2800, "cache_ttl_s": 60, "idempotent": true,
+     "config": {"text": "SLOTS (next 14d): Pulm Dr.Lee Tue 14:00, Thu 09:30, Fri 11:00; Pulm Dr.Park (telehealth) same-day before 16:00; Allergy Dr.Singh Mon 13:00, Wed 15:30; default 30-min visit"}},
+    {"name": "emergency_protocols_cache", "description": "Red-flag protocols cache: trigger phrases + escalation paths.",
+     "kind": "mock", "expected_latency_ms": 350, "cache_ttl_s": 86400, "idempotent": true,
+     "config": {"text": "RED FLAGS: chest pain + dyspnea → 911 (MI rule-out); FAST signs (face/arm/speech/time) → 911 (stroke); active suicidal ideation → 988 lifeline; severe allergic reaction → EMS + epinephrine if available"}},
+    {"name": "clinical_guidelines_rag",   "description": "RAG over current clinical guidelines (AAFP, USPSTF, specialty societies): referral criteria + workup.",
+     "kind": "rag", "expected_latency_ms": 4800, "cache_ttl_s": 7200, "idempotent": true,
+     "config": {"text": "GUIDELINE (persistent cough >3wk, AAFP 2024): order chest X-ray + spirometry; refer pulmonology if abnormal imaging, suspected asthma uncontrolled, or hemoptysis present; consider GERD workup if normal imaging"}}
+  ],
+  "cohorts": [
+    {"name": "RoutineRequest",   "description": "Routine non-urgent scheduling (check-up, follow-up, refill).",
+     "moods": [
+       {"name": "transactional",    "description": "Knows exactly what they want; wants quick confirmation.",          "prior": 0.50},
+       {"name": "calendar_flexible","description": "Open on timing; wants to find what works.",                        "prior": 0.30},
+       {"name": "indifferent",      "description": "Going through the motions; no preference signal.",                 "prior": 0.20}
+     ]},
+    {"name": "UrgentSymptoms",   "description": "Acute but non-emergency symptoms needing prompt scheduling.",
+     "moods": [
+       {"name": "worried",            "description": "Anxious about the symptoms; needs reassurance about timing.",     "prior": 0.45},
+       {"name": "matter_of_fact",     "description": "Wants the soonest slot, no fuss.",                                "prior": 0.30},
+       {"name": "self_diagnosing",    "description": "Has already searched online; mentions specific conditions.",      "prior": 0.20},
+       {"name": "minimizing",         "description": "Plays down symptoms; agent may need to probe.",                   "prior": 0.05}
+     ]},
+    {"name": "Emergency",        "description": "Symptoms suggesting a possible emergency; agent must triage to 911.",
+     "moods": [
+       {"name": "panicked",         "description": "Acute distress; needs clear, calm 911 instruction.",                "prior": 0.45},
+       {"name": "denial",           "description": "Insists it's not that bad; resists triage.",                       "prior": 0.30},
+       {"name": "calm_but_serious", "description": "Aware of severity, requesting guidance.",                          "prior": 0.25}
+     ]},
+    {"name": "AdviceSeeker",     "description": "Patient is asking for medical advice rather than scheduling — agent must decline.",
+     "moods": [
+       {"name": "naive_request",       "description": "Genuinely thinks the line is for advice.",                       "prior": 0.50},
+       {"name": "frustrated_no_access","description": "Can't get through to a clinician; trying anything.",             "prior": 0.30},
+       {"name": "test_seeking",        "description": "Looking for a specific test or referral via this line.",         "prior": 0.20}
+     ]},
+    {"name": "NewPatient",       "description": "First contact with the clinic; full intake needed.",
+     "moods": [
+       {"name": "researching",     "description": "Vetting whether this clinic is right for them.",                    "prior": 0.40},
+       {"name": "transactional",   "description": "Just wants to register and book.",                                  "prior": 0.40},
+       {"name": "intimidated",     "description": "Unfamiliar with this clinic system; needs hand-holding.",           "prior": 0.20}
+     ]},
+    {"name": "ReturningPatient", "description": "Existing patient with records on file; faster booking path.",
+     "moods": [
+       {"name": "familiar_routine","description": "Knows the drill; chatty or efficient.",                             "prior": 0.55},
+       {"name": "post_visit_followup","description": "Calling back after a recent visit; refers to it.",               "prior": 0.30},
+       {"name": "annoyed_recall",  "description": "Annoyed that records weren't already in front of agent.",           "prior": 0.15}
+     ]},
+    {"name": "Indecisive",       "description": "Vague about reason; needs careful elicitation.",
+     "moods": [
+       {"name": "shy",             "description": "Embarrassed about the reason; needs gentle probing.",               "prior": 0.40},
+       {"name": "unsure_what_to_ask","description": "Doesn't know whether their issue warrants a visit.",              "prior": 0.40},
+       {"name": "rambling",        "description": "Gives long unfocused answers; agent must steer.",                   "prior": 0.20}
+     ]}
+  ],
+  "user_states": [
+    {"name": "Unknown",            "description": "Patient has not yet provided context."},
+    {"name": "DescribedSymptoms",  "description": "Patient described non-emergency symptoms or a routine reason."},
+    {"name": "PossibleEmergency",  "description": "Symptoms suggest a possible emergency (chest pain, stroke signs, severe injury, suicidal ideation)."},
+    {"name": "AskingForAdvice",    "description": "Patient is asking for medical advice rather than scheduling."},
+    {"name": "IdentityProvided",   "description": "Provided name + DOB."},
+    {"name": "InsuranceProvided",  "description": "Provided insurance information."},
+    {"name": "ReturningPatient",   "description": "Confirmed previously seen at the clinic."},
+    {"name": "NewPatient",         "description": "Confirmed new to the clinic."},
+    {"name": "PreferenceStated",   "description": "Stated preferences for time, location, or clinician."},
+    {"name": "Objecting",          "description": "Objects to proposed time, location, or clinician."},
+    {"name": "AppointmentBooked",  "description": "Patient confirmed the chosen slot (SUCCESS)."},
+    {"name": "DroppedOff",         "description": "Patient stopped responding or left (FAILURE)."},
+    {"name": "Escalated911",       "description": "Patient was advised to call 911 (TRIAGE TERMINAL)."}
+  ],
+  "sop": {
+    "nodes": [
+      "Greeting","AskReasonForVisit","EmergencyTriage","DeclineMedicalAdvice",
+      "VerifyIdentity","VerifyInsurance","ConfirmReturningPatient",
+      "RecommendSpecialty","OfferTelehealth","ProposeTimes","HandleSchedulingObjection",
+      "ConfirmAppointment","SendConfirmation","ClosePolite",
+      "Unknown","DescribedSymptoms","PossibleEmergency","AskingForAdvice",
+      "IdentityProvided","InsuranceProvided","ReturningPatient","NewPatient",
+      "PreferenceStated","Objecting","AppointmentBooked","DroppedOff","Escalated911"
+    ],
+    "edges": [
+      {"src": "Greeting",            "dst": "AskReasonForVisit",         "direction": "forward"},
+      {"src": "PossibleEmergency",   "dst": "EmergencyTriage",           "direction": "forward", "note": "Emergency signals require immediate triage."},
+      {"src": "EmergencyTriage",     "dst": "ClosePolite",               "direction": "forward", "note": "Stop scheduling after triage."},
+      {"src": "AskingForAdvice",     "dst": "DeclineMedicalAdvice",      "direction": "forward", "note": "Refuse advice before continuing scheduling."},
+      {"src": "AskReasonForVisit",   "dst": "RecommendSpecialty",        "direction": "forward"},
+      {"src": "DescribedSymptoms",   "dst": "RecommendSpecialty",        "direction": "forward"},
+      {"src": "RecommendSpecialty",  "dst": "OfferTelehealth",           "direction": "forward"},
+      {"src": "RecommendSpecialty",  "dst": "VerifyIdentity",            "direction": "forward"},
+      {"src": "VerifyIdentity",      "dst": "VerifyInsurance",           "direction": "forward", "note": "Identity before insurance."},
+      {"src": "IdentityProvided",    "dst": "VerifyInsurance",           "direction": "forward"},
+      {"src": "VerifyInsurance",     "dst": "ConfirmReturningPatient",   "direction": "forward"},
+      {"src": "InsuranceProvided",   "dst": "ConfirmReturningPatient",   "direction": "forward"},
+      {"src": "ConfirmReturningPatient","dst": "ProposeTimes",           "direction": "forward"},
+      {"src": "ProposeTimes",        "dst": "ConfirmAppointment",        "direction": "forward"},
+      {"src": "Objecting",           "dst": "HandleSchedulingObjection", "direction": "forward"},
+      {"src": "HandleSchedulingObjection","dst": "ProposeTimes",         "direction": "forward", "note": "After handling, propose new times."},
+      {"src": "AppointmentBooked",   "dst": "ConfirmAppointment",        "direction": "forward"},
+      {"src": "ConfirmAppointment",  "dst": "SendConfirmation",          "direction": "forward"},
+      {"src": "SendConfirmation",    "dst": "ClosePolite",               "direction": "forward"},
+      {"src": "DroppedOff",          "dst": "ClosePolite",               "direction": "forward"}
+    ]
+  }
+}

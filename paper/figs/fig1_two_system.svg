@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two-system architecture diagram">
+  <defs>
+    <marker id="arr-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2a4a7f"/></marker>
+    <marker id="arr-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4632c"/></marker>
+    <marker id="arr-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2c8485"/></marker>
+  </defs>
+  <!-- backgrounds for lanes -->
+  <rect x="0" y="60" width="720" height="120" fill="#f6f0e8" stroke="none"/>
+  <rect x="0" y="220" width="720" height="140" fill="#fdf4ec" stroke="none"/>
+  <text x="12" y="78" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.1em" fill="#5a6071">CRITICAL PATH</text>
+  <text x="12" y="254" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.1em" fill="#5a6071">ASYNC LANE</text>
+
+  <!-- live user -->
+  <rect x="260" y="10" width="200" height="40" rx="6" fill="#2a4a7f"/>
+  <text x="360" y="35" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#fff">LIVE USER</text>
+
+  <!-- arrow user→agent -->
+  <path d="M 360 50 L 360 95" stroke="#2a4a7f" stroke-width="2" fill="none" marker-end="url(#arr-blue)"/>
+  <text x="370" y="76" font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">speech / text</text>
+
+  <!-- weak agent -->
+  <rect x="220" y="98" width="280" height="58" rx="6" fill="#fff" stroke="#2a4a7f" stroke-width="2"/>
+  <text x="360" y="120" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#2a4a7f">WEAK VOICE AGENT</text>
+  <text x="360" y="140" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" fill="#5a6071">fast model · latency-bounded</text>
+
+  <!-- arrow agent→blackboard (reads) -->
+  <path d="M 320 156 L 250 190" stroke="#2c8485" stroke-width="2" fill="none" marker-end="url(#arr-teal)"/>
+  <text x="195" y="178" font-family="-apple-system,sans-serif" font-size="11" fill="#2c8485">reads</text>
+
+  <!-- blackboard (cross-lane) -->
+  <rect x="80" y="190" width="340" height="46" rx="6" fill="#d6ecec" stroke="#2c8485" stroke-width="2"/>
+  <text x="250" y="210" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#2c8485">BLACKBOARD</text>
+  <text x="250" y="226" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" fill="#5a6071">session pool · data + pre-staged text · TTL · source tags</text>
+
+  <!-- arrow supervisor→blackboard (writes) -->
+  <path d="M 480 270 L 400 240" stroke="#c4632c" stroke-width="2" fill="none" marker-end="url(#arr-coral)"/>
+  <text x="430" y="262" font-family="-apple-system,sans-serif" font-size="11" fill="#c4632c">writes</text>
+
+  <!-- supervisor -->
+  <rect x="430" y="270" width="240" height="58" rx="6" fill="#fff" stroke="#c4632c" stroke-width="2"/>
+  <text x="550" y="292" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#c4632c">SUPERVISOR</text>
+  <text x="550" y="310" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" fill="#5a6071">slow / strong · predicts turns · prefetches</text>
+
+  <!-- external data row -->
+  <g font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600" fill="#5a6071">
+    <rect x="50"  y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="80"  y="350" text-anchor="middle">MCP</text>
+    <rect x="118" y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="148" y="350" text-anchor="middle">KG</text>
+    <rect x="186" y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="216" y="350" text-anchor="middle">DB</text>
+    <rect x="254" y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="284" y="350" text-anchor="middle">RAG</text>
+  </g>
+  <!-- arrow supervisor→external data -->
+  <path d="M 480 328 Q 380 340 320 346" stroke="#c4632c" stroke-width="2" fill="none" marker-end="url(#arr-coral)"/>
+</svg>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Key-lookup vs pool architecture">
+  <defs>
+    <marker id="arr2-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5a6071"/></marker>
+    <marker id="arr2-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4632c"/></marker>
+  </defs>
+
+  <!-- KEY-LOOKUP -->
+  <text x="10" y="22" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#a8302c">KEY-LOOKUP — what we had</text>
+  <rect x="10" y="34" width="700" height="98" rx="6" fill="#fbf3f3" stroke="#e0c4c2"/>
+  <!-- prefetch box -->
+  <rect x="30" y="56" width="180" height="36" rx="4" fill="#fff" stroke="#a8302c"/>
+  <text x="120" y="79" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12.5" font-weight="600" fill="#a8302c">prefetch hashes key</text>
+  <path d="M 210 74 L 238 74" stroke="#5a6071" stroke-width="1.5" fill="none" marker-end="url(#arr2-grey)"/>
+  <!-- cache as kv -->
+  <rect x="240" y="50" width="280" height="48" rx="4" fill="#fff" stroke="#5a6071"/>
+  <text x="380" y="68" text-anchor="middle" font-family="SF Mono,Menlo,Consolas,monospace" font-size="11" fill="#1f2330">cache[hash(sess, dep, action, query)]</text>
+  <text x="380" y="86" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" fill="#5a6071">key → value</text>
+  <path d="M 522 74 L 555 74" stroke="#5a6071" stroke-width="1.5" fill="none" marker-end="url(#arr2-grey)"/>
+  <!-- live lookup -->
+  <rect x="555" y="56" width="135" height="36" rx="4" fill="#fff" stroke="#a8302c"/>
+  <text x="622" y="79" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600" fill="#a8302c">exact match or miss</text>
+  <text x="360" y="118" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-style="italic" fill="#a8302c">a mispredicted key wastes the fetch — there's no second chance.</text>
+
+  <!-- POOL -->
+  <text x="10" y="166" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#2c8485">POOL — what we shipped</text>
+  <rect x="10" y="178" width="700" height="132" rx="6" fill="#d6ecec" stroke="#a4d1d2"/>
+  <!-- prefetch box -->
+  <rect x="30" y="200" width="180" height="36" rx="4" fill="#fff" stroke="#2c8485"/>
+  <text x="120" y="223" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12.5" font-weight="600" fill="#2c8485">prefetch appends item</text>
+  <path d="M 210 218 L 238 218" stroke="#c4632c" stroke-width="1.5" fill="none" marker-end="url(#arr2-coral)"/>
+  <!-- pool box with mini items -->
+  <rect x="240" y="190" width="280" height="92" rx="4" fill="#fff" stroke="#2c8485"/>
+  <text x="380" y="207" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-weight="700" letter-spacing="0.05em" fill="#2c8485">SESSION POOL</text>
+  <g font-family="SF Mono,Menlo,Consolas,monospace" font-size="10" fill="#1f2330">
+    <rect x="248" y="214" width="264" height="14" fill="#f6f0e8"/><text x="252" y="225">POLICY · #INS-882431 · expires 06-15</text>
+    <rect x="248" y="230" width="264" height="14" fill="#fdf4ec"/><text x="252" y="241">DISCOUNTS · multi-policy 8% bundle</text>
+    <rect x="248" y="246" width="264" height="14" fill="#f6f0e8"/><text x="252" y="257">MARKET · peer_avg $1580/yr · Geico $1510</text>
+    <rect x="248" y="262" width="264" height="14" fill="#fdf4ec"/><text x="252" y="273">CLAIMS · 1 comp 09-24 windshield $720</text>
+  </g>
+  <path d="M 522 234 L 555 234" stroke="#c4632c" stroke-width="1.5" fill="none" marker-end="url(#arr2-coral)"/>
+  <!-- rerank step -->
+  <rect x="555" y="216" width="135" height="36" rx="4" fill="#fff" stroke="#c4632c"/>
+  <text x="622" y="239" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600" fill="#c4632c">per-turn rerank</text>
+  <text x="360" y="298" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-style="italic" fill="#2c8485">mispredicted items stay available — every turn re-evaluates the whole pool.</text>
+</svg>
