@@ -10,8 +10,10 @@ This repo accompanies the paper *"Speculative Context: A Pool-Based Cache for
 SOP-Constrained Voice Agents"* (`paper/`) and the research write-up
 *"Supervising the Fast Mouth"* (`blog/`).
 
-**📖 Read the research story:** https://dsivov.github.io/MCPlanner/
-*(requires GitHub Pages enabled: Settings → Pages → Deploy from branch `main`, folder `/`)*
+- **📖 Research story (blog):** https://dsivov.github.io/MCPlanner/
+- **📄 Paper (PDF):** https://dsivov.github.io/MCPlanner/paper/paper.pdf
+
+*(both require GitHub Pages enabled: Settings → Pages → Deploy from branch `main`, folder `/`)*
 
 ---
 
