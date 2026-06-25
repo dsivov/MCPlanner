@@ -1,0 +1,1086 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teaching a slow brain to help a fast mouth — a research story</title>
+<style>
+  :root {
+    --bg: #faf8f3;
+    --fg: #1f2330;
+    --muted: #5a6071;
+    --accent: #2a4a7f;          /* navy — live agent / critical path */
+    --accent-soft: #e2eaf6;
+    --supervisor: #c4632c;       /* warm coral — supervisor / async lane */
+    --supervisor-soft: #fbe7d6;
+    --blackboard: #2c8485;       /* teal — blackboard / data */
+    --blackboard-soft: #d6ecec;
+    --mcts: #6a4f8a;             /* mauve — rollouts / MCTS */
+    --mcts-soft: #e8e0f0;
+    --border: #d8d4c8;
+    --code-bg: #f1ede4;
+    --table-stripe: #f5f1e6;
+    --ok: #2f7a3d;
+    --warn: #a25a00;
+    --bad: #a8302c;
+  }
+  html { background: var(--bg); }
+  body {
+    color: var(--fg);
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    font-size: 17px;
+    line-height: 1.65;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  header { margin-bottom: 48px; border-bottom: 1px solid var(--border); padding-bottom: 24px; }
+  h1 { font-size: 34px; line-height: 1.2; margin: 0 0 12px; color: var(--fg); letter-spacing: -0.01em; }
+  .subtitle { font-style: italic; color: var(--muted); font-size: 18px; margin-bottom: 16px; }
+  .meta { color: var(--muted); font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  h2 { font-size: 24px; margin-top: 56px; margin-bottom: 12px; color: var(--accent); letter-spacing: -0.005em; }
+  h3 { font-size: 18px; margin-top: 32px; margin-bottom: 8px; color: var(--fg); }
+  p { margin: 0 0 16px; }
+  a { color: var(--accent); }
+  a:hover { text-decoration: none; }
+  blockquote {
+    margin: 24px 0;
+    padding: 12px 20px;
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    color: var(--fg);
+    font-style: italic;
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.5;
+    font-family: "SF Mono", "Menlo", Consolas, monospace;
+    border-radius: 4px;
+  }
+  code { font-family: "SF Mono", "Menlo", Consolas, monospace; font-size: 0.92em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  pre code { background: transparent; padding: 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+    font-size: 14.5px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 13.5px; letter-spacing: 0.02em; text-transform: uppercase; }
+  tr:nth-child(even) td { background: var(--table-stripe); }
+  .num { font-variant-numeric: tabular-nums; }
+  .figure {
+    margin: 32px 0;
+    text-align: center;
+  }
+  .figure pre {
+    display: inline-block;
+    text-align: left;
+    max-width: 100%;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .caption {
+    font-size: 13.5px;
+    color: var(--muted);
+    margin-top: 8px;
+    font-style: italic;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; font-family: -apple-system, sans-serif; }
+  .pill-ok { background: #d8efd8; color: var(--ok); }
+  .pill-warn { background: #f7e6cc; color: var(--warn); }
+  .pill-bad { background: #f3d6d4; color: var(--bad); }
+  .pull {
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--accent);
+    border-left: none;
+    text-align: center;
+    margin: 40px 24px;
+    font-style: italic;
+    letter-spacing: -0.005em;
+  }
+  footer { margin-top: 80px; border-top: 1px solid var(--border); padding-top: 24px; font-size: 14px; color: var(--muted); }
+  footer ul { padding-left: 20px; }
+  footer li { margin: 8px 0; }
+  .toc { background: var(--accent-soft); padding: 16px 20px; border-radius: 4px; font-size: 14.5px; font-family: -apple-system, sans-serif; margin-bottom: 40px; }
+  .toc h4 { margin: 0 0 6px; font-size: 13px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; }
+  .toc li { margin: 4px 0; }
+  .toc a { color: var(--fg); text-decoration: none; }
+  .toc a:hover { color: var(--accent); }
+  .data-callout {
+    background: var(--code-bg);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    margin: 24px 0;
+    font-family: -apple-system, sans-serif;
+    font-size: 14.5px;
+  }
+  .data-callout strong { color: var(--accent); }
+
+  /* SVG diagrams — let them go a bit wider than body text where useful. */
+  .diagram { margin: 36px 0 8px; text-align: center; }
+  .diagram svg { max-width: 100%; height: auto; }
+  .diagram .caption { margin-top: 10px; }
+
+  /* Latency bar chart (HTML/CSS — keeps the file lean). */
+  .latency-chart {
+    margin: 28px 0 8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .lat-row { display: grid; grid-template-columns: 120px 1fr 90px; gap: 10px; align-items: center; margin: 8px 0; }
+  .lat-label { font-size: 13.5px; color: var(--muted); text-align: right; }
+  .lat-track { background: var(--code-bg); border-radius: 3px; height: 22px; position: relative; overflow: hidden; }
+  .lat-bar { height: 100%; border-radius: 3px; display: flex; align-items: center; padding-left: 8px; color: #fff; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .lat-bar.b-base { background: linear-gradient(90deg, #4a5a7a, #6b7b9c); }
+  .lat-bar.b-v1   { background: linear-gradient(90deg, #4a5a7a, #6b7b9c); opacity: 0.85; }
+  .lat-bar.b-v2   { background: linear-gradient(90deg, var(--supervisor), #d98851); }
+  .lat-bar.b-v3   { background: linear-gradient(90deg, var(--blackboard), #4ba6a7); }
+  /* Value label placed OUTSIDE a bar that is too short to contain its text. */
+  .lat-bar-out { position: absolute; top: 0; height: 100%; display: flex; align-items: center; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--blackboard); font-variant-numeric: tabular-nums; }
+  .lat-target {
+    position: absolute; top: -4px; bottom: -4px;
+    border-left: 2px dashed var(--ok);
+    z-index: 2;
+  }
+  .lat-target-label { color: var(--ok); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+  .lat-note { font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Cosine distribution number line. */
+  .numline {
+    margin: 24px 0;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .numline svg { display: block; margin: 0 auto; }
+
+  /* Pool-snapshot card (concrete example). */
+  .pool-snapshot {
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 13.5px;
+  }
+  .pool-snapshot .live-msg {
+    background: var(--accent-soft);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+    font-style: italic;
+  }
+  .pool-snapshot .live-msg strong { font-style: normal; }
+  .pool-snapshot .items { padding: 6px 0; }
+  .pool-item {
+    display: grid;
+    grid-template-columns: 56px 110px 1fr 70px;
+    gap: 8px;
+    padding: 6px 14px;
+    border-bottom: 1px dashed var(--border);
+    align-items: center;
+  }
+  .pool-item:last-child { border-bottom: none; }
+  .pool-item .cos { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--mcts); text-align: right; }
+  .pool-item .dep { font-weight: 700; font-size: 12px; letter-spacing: 0.02em; }
+  .pool-item .summary { color: var(--fg); }
+  .pool-item .status { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; text-align: right; }
+  .pool-item.pick { background: #f0f7ed; }
+  .pool-item.pick .status { color: var(--ok); }
+  .pool-item.dup { background: #fbf3f3; opacity: 0.7; }
+  .pool-item.dup .status { color: var(--bad); }
+  .pool-item.skip .status { color: var(--muted); }
+  .pool-item .dep.policy    { color: var(--accent); }
+  .pool-item .dep.discounts { color: var(--supervisor); }
+  .pool-item .dep.market    { color: var(--blackboard); }
+  .pool-item .dep.rag       { color: var(--mcts); }
+  .pool-item .dep.claims    { color: var(--mcts); }
+
+  /* Two-system diagram colors. */
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; font-family: -apple-system, sans-serif; font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+  .legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .legend .live::before        { background: var(--accent); }
+  .legend .blackboard::before  { background: var(--blackboard); }
+  .legend .supervisor::before  { background: var(--supervisor); }
+  .legend .mcts::before        { background: var(--mcts); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Teaching a slow brain to help a fast mouth</h1>
+  <p class="subtitle">A research story about voice agents, background supervisors, and the unromantic moments that change a research direction.</p>
+  <p class="meta">2026-06-04 · Production-architecture POC for SOP-constrained conversational agents</p>
+</header>
+
+<div class="toc">
+  <h4>What's in this post</h4>
+  <ol>
+    <li><a href="#problem">The dialogue agent's impossible choice</a></li>
+    <li><a href="#pattern">A two-system answer (with appropriate credit)</a></li>
+    <li><a href="#built">What we built first</a></li>
+    <li><a href="#numbers">The numbers that landed first</a></li>
+    <li><a href="#null">A null result that mattered</a></li>
+    <li><a href="#mood">The mood detour</a></li>
+    <li><a href="#query">Asking the right question</a></li>
+    <li><a href="#pool">The reframing that changed everything</a></li>
+    <li><a href="#latency">The latency story (and what it taught us)</a></li>
+    <li><a href="#mcts-value">Did the clever planner actually pay off?</a></li>
+    <li><a href="#now">Where it stands</a></li>
+    <li><a href="#refs">Sources, influences, prior art</a></li>
+  </ol>
+</div>
+
+<h2 id="problem">The dialogue agent's impossible choice</h2>
+
+<p>A real-time voice agent has to make a choice on every turn that doesn't actually have a good answer:</p>
+
+<p><strong>Use a small fast model</strong>, and you keep the response latency within the few hundred milliseconds that voice conversations demand — but the agent fumbles whenever it needs to reason, retrieve a document, or follow a multi-step procedure.</p>
+
+<p><strong>Use a large smart model</strong>, and the agent is competent — but the user spends five to fifteen seconds in awkward silence between every utterance. People hang up.</p>
+
+<p>The standard production response is to compromise: a medium-sized model, a thin layer of retrieval-augmented generation, perhaps some routing logic that escalates to a stronger model for hard cases. It works adequately for simple flows. It does not scale to the kind of regulated, multi-step conversations that real businesses actually need handled — credit-card activation, insurance renewal, medical scheduling, customer support over policy documents.</p>
+
+<p>The research project this post is about started from a sharper version of that observation. <em>What if we treated the latency–intelligence trade-off as a two-system problem rather than a one-model problem?</em></p>
+
+<h2 id="pattern">A two-system answer (with appropriate credit)</h2>
+
+<p>The pattern itself isn't new. It comes from robotics. In <a href="https://arxiv.org/html/2312.13925v1">Asynchronous Multi-Level Decomposition (AsyncMLD)</a>, the fast low-level controller acts in real time while a slow high-level planner refines the plan asynchronously, with a shared blackboard mediating between them. The robot's body never has to wait for the brain.</p>
+
+<p>That maps very cleanly onto voice agents if you let it:</p>
+
+<div class="diagram">
+<svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two-system architecture diagram">
+  <defs>
+    <marker id="arr-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2a4a7f"/></marker>
+    <marker id="arr-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4632c"/></marker>
+    <marker id="arr-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2c8485"/></marker>
+  </defs>
+  <!-- backgrounds for lanes -->
+  <rect x="0" y="60" width="720" height="120" fill="#f6f0e8" stroke="none"/>
+  <rect x="0" y="220" width="720" height="140" fill="#fdf4ec" stroke="none"/>
+  <text x="12" y="78" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.1em" fill="#5a6071">CRITICAL PATH</text>
+  <text x="12" y="254" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.1em" fill="#5a6071">ASYNC LANE</text>
+
+  <!-- live user -->
+  <rect x="260" y="10" width="200" height="40" rx="6" fill="#2a4a7f"/>
+  <text x="360" y="35" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#fff">LIVE USER</text>
+
+  <!-- arrow user→agent -->
+  <path d="M 360 50 L 360 95" stroke="#2a4a7f" stroke-width="2" fill="none" marker-end="url(#arr-blue)"/>
+  <text x="370" y="76" font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">speech / text</text>
+
+  <!-- weak agent -->
+  <rect x="220" y="98" width="280" height="58" rx="6" fill="#fff" stroke="#2a4a7f" stroke-width="2"/>
+  <text x="360" y="120" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#2a4a7f">WEAK VOICE AGENT</text>
+  <text x="360" y="140" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" fill="#5a6071">fast model · latency-bounded</text>
+
+  <!-- arrow agent→blackboard (reads) -->
+  <path d="M 320 156 L 250 190" stroke="#2c8485" stroke-width="2" fill="none" marker-end="url(#arr-teal)"/>
+  <text x="195" y="178" font-family="-apple-system,sans-serif" font-size="11" fill="#2c8485">reads</text>
+
+  <!-- blackboard (cross-lane) -->
+  <rect x="80" y="190" width="340" height="46" rx="6" fill="#d6ecec" stroke="#2c8485" stroke-width="2"/>
+  <text x="250" y="210" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#2c8485">BLACKBOARD</text>
+  <text x="250" y="226" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" fill="#5a6071">session pool · data + pre-staged text · TTL · source tags</text>
+
+  <!-- arrow supervisor→blackboard (writes) -->
+  <path d="M 480 270 L 400 240" stroke="#c4632c" stroke-width="2" fill="none" marker-end="url(#arr-coral)"/>
+  <text x="430" y="262" font-family="-apple-system,sans-serif" font-size="11" fill="#c4632c">writes</text>
+
+  <!-- supervisor -->
+  <rect x="430" y="270" width="240" height="58" rx="6" fill="#fff" stroke="#c4632c" stroke-width="2"/>
+  <text x="550" y="292" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="14" font-weight="700" fill="#c4632c">SUPERVISOR</text>
+  <text x="550" y="310" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" fill="#5a6071">slow / strong · predicts turns · prefetches</text>
+
+  <!-- external data row -->
+  <g font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600" fill="#5a6071">
+    <rect x="50"  y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="80"  y="350" text-anchor="middle">MCP</text>
+    <rect x="118" y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="148" y="350" text-anchor="middle">KG</text>
+    <rect x="186" y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="216" y="350" text-anchor="middle">DB</text>
+    <rect x="254" y="335" width="60" height="22" rx="3" fill="#fff" stroke="#5a6071"/><text x="284" y="350" text-anchor="middle">RAG</text>
+  </g>
+  <!-- arrow supervisor→external data -->
+  <path d="M 480 328 Q 380 340 320 346" stroke="#c4632c" stroke-width="2" fill="none" marker-end="url(#arr-coral)"/>
+</svg>
+<div class="caption">The two-system pattern. The voice agent never talks to the supervisor or to data sources directly — only the blackboard.</div>
+<div class="legend">
+  <span class="live">live agent · critical path</span>
+  <span class="blackboard">blackboard / data</span>
+  <span class="supervisor">supervisor · async lane</span>
+</div>
+</div>
+
+<p>The voice agent stays on its real-time budget because it never waits on the planner or on external I/O. Slow work — search, reasoning, retrieval — happens during the natural gap between user utterances. When the supervisor's predictions are correct, the response feels instant. When wrong, the agent falls back to its built-in behaviour — no worse than today.</p>
+
+<p>Our research question was straightforward to ask and considerably less straightforward to answer:</p>
+
+<blockquote>
+<p>Given the conversation history and all available signal — declared SOPs, classified user disposition, retrieved precedents — can the supervisor predict the next one to three turns of the conversation well enough that it can usefully <strong>pre-fetch the data</strong> and <strong>pre-stage the instructions</strong> that the weak agent will need?</p>
+</blockquote>
+
+<h2 id="built">What we built first</h2>
+
+<p>We implemented the supervisor around a planner inspired by the <a href="https://arxiv.org/html/2407.03884v1">PCA-M paper</a> — Planning-based Conversational Agents with Monte Carlo Tree Search. The core idea is to treat the agent's next action selection as a planning problem: enumerate candidate actions, simulate forward via rollouts, pick the one whose imagined-future trajectory looks best.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MCTS rollout structure">
+  <defs>
+    <marker id="arr-mcts" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6a4f8a"/></marker>
+  </defs>
+  <text x="360" y="20" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#6a4f8a">MCTS ROLLOUT TREE — current turn t</text>
+
+  <!-- root -->
+  <ellipse cx="360" cy="55" rx="80" ry="20" fill="#e8e0f0" stroke="#6a4f8a" stroke-width="2"/>
+  <text x="360" y="60" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" fill="#6a4f8a">history + state</text>
+
+  <!-- depth 1: 3 candidate actions -->
+  <g stroke="#6a4f8a" stroke-width="1.5" fill="none" stroke-opacity="0.8">
+    <line x1="320" y1="74" x2="160" y2="120" marker-end="url(#arr-mcts)"/>
+    <line x1="360" y1="74" x2="360" y2="120" marker-end="url(#arr-mcts)"/>
+    <line x1="400" y1="74" x2="560" y2="120" marker-end="url(#arr-mcts)"/>
+  </g>
+  <g font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600">
+    <rect x="80" y="125" width="160" height="32" rx="4" fill="#fff" stroke="#6a4f8a"/><text x="160" y="146" text-anchor="middle" fill="#6a4f8a">action: OfferDiscounts</text>
+    <rect x="280" y="125" width="160" height="32" rx="4" fill="#fff" stroke="#6a4f8a"/><text x="360" y="146" text-anchor="middle" fill="#6a4f8a">action: DiscussPricing</text>
+    <rect x="480" y="125" width="160" height="32" rx="4" fill="#fff" stroke="#6a4f8a"/><text x="560" y="146" text-anchor="middle" fill="#6a4f8a">action: VerifyCoverage</text>
+  </g>
+
+  <!-- depth 2: each action expands to 4 parallel rollouts (one per mood draw) -->
+  <text x="20" y="195" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.05em" fill="#5a6071">4 ROLLOUTS PER ACTION</text>
+  <g font-family="-apple-system,sans-serif" font-size="10" fill="#1f2330">
+    <!-- left action's 4 rollouts -->
+    <rect x="80"  y="200" width="40" height="40" rx="3" fill="#fbe7d6"/><text x="100" y="217" text-anchor="middle" fill="#c4632c">calm</text><text x="100" y="232" text-anchor="middle" fill="#5a6071">+0.8</text>
+    <rect x="120" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="140" y="217" text-anchor="middle" fill="#c4632c">frust</text><text x="140" y="232" text-anchor="middle" fill="#5a6071">+0.3</text>
+    <rect x="160" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="180" y="217" text-anchor="middle" fill="#c4632c">skep</text><text x="180" y="232" text-anchor="middle" fill="#5a6071">+0.6</text>
+    <rect x="200" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.5"/><text x="220" y="217" text-anchor="middle" fill="#c4632c">indif</text><text x="220" y="232" text-anchor="middle" fill="#5a6071">+0.4</text>
+    <!-- middle action's 4 rollouts -->
+    <rect x="280" y="200" width="40" height="40" rx="3" fill="#fbe7d6"/><text x="300" y="217" text-anchor="middle" fill="#c4632c">calm</text><text x="300" y="232" text-anchor="middle" fill="#5a6071">+0.5</text>
+    <rect x="320" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="340" y="217" text-anchor="middle" fill="#c4632c">frust</text><text x="340" y="232" text-anchor="middle" fill="#5a6071">-0.2</text>
+    <rect x="360" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="380" y="217" text-anchor="middle" fill="#c4632c">skep</text><text x="380" y="232" text-anchor="middle" fill="#5a6071">+0.2</text>
+    <rect x="400" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.5"/><text x="420" y="217" text-anchor="middle" fill="#c4632c">indif</text><text x="420" y="232" text-anchor="middle" fill="#5a6071">+0.3</text>
+    <!-- right action's 4 rollouts -->
+    <rect x="480" y="200" width="40" height="40" rx="3" fill="#fbe7d6"/><text x="500" y="217" text-anchor="middle" fill="#c4632c">calm</text><text x="500" y="232" text-anchor="middle" fill="#5a6071">+0.1</text>
+    <rect x="520" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="540" y="217" text-anchor="middle" fill="#c4632c">frust</text><text x="540" y="232" text-anchor="middle" fill="#5a6071">-0.4</text>
+    <rect x="560" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.7"/><text x="580" y="217" text-anchor="middle" fill="#c4632c">skep</text><text x="580" y="232" text-anchor="middle" fill="#5a6071">+0.0</text>
+    <rect x="600" y="200" width="40" height="40" rx="3" fill="#fbe7d6" fill-opacity="0.5"/><text x="620" y="217" text-anchor="middle" fill="#c4632c">indif</text><text x="620" y="232" text-anchor="middle" fill="#5a6071">+0.1</text>
+  </g>
+
+  <!-- score row -->
+  <g font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">
+    <line x1="80" y1="252" x2="240" y2="252" stroke="#5a6071"/>
+    <line x1="280" y1="252" x2="440" y2="252" stroke="#5a6071"/>
+    <line x1="480" y1="252" x2="640" y2="252" stroke="#5a6071"/>
+    <text x="160" y="270" text-anchor="middle" font-weight="700" fill="#2f7a3d">avg +0.53</text>
+    <text x="360" y="270" text-anchor="middle">avg +0.20</text>
+    <text x="560" y="270" text-anchor="middle">avg -0.05</text>
+  </g>
+  <text x="360" y="298" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-style="italic" fill="#5a6071">→ pick OfferDiscounts (best expected reward across mood draws)</text>
+</svg>
+<div class="caption">One MCTS turn: enumerate 3 candidate actions, expand each into 4 mood-sampled rollouts that simulate forward up to depth 3. Average the rollout rewards, pick the best action. Each per-action expansion runs in parallel.</div>
+</div>
+
+<p>The pieces we shipped over the first few weeks:</p>
+
+<ul>
+  <li><strong>An SOP graph</strong>: nodes are agent actions and user states; edges encode allowed transitions. Picked up from PCA-M and extended with structured cohort and mood vocabularies.</li>
+  <li><strong>MCTS rollouts</strong>: at every turn, the planner runs 8 parallel rollouts up to depth 3, each simulating "if the agent does action <em>A</em>, what does the user likely say, what action follows, how does it end?"</li>
+  <li><strong>A speculative data-prefetch pipeline</strong>: each predicted future action declares external data dependencies. We issue those queries in the background before the user has even finished talking, so the answers are sitting in cache by the time they're needed.</li>
+  <li><strong>A multi-tier router</strong>: most turns are routable to a fast "cached playbook" tier; a smaller slice goes through a single-LLM-call baseline; only genuinely uncertain turns invoke the full MCTS search.</li>
+  <li><strong>A test harness</strong> with a strong LLM playing the user. We were explicit about not researching the user simulator itself — it's there to make the tests honest, not because it's a contribution.</li>
+</ul>
+
+<p>Everything ran against three seed scenarios: credit-card activation, car insurance renewal, and medical appointment booking. Each scenario has 7-13 declared agent actions, 7 cohorts (each with 3-4 mood variants), 6 data dependencies with realistic 0.4-7 second mocked latencies.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mini SOP graph for car-insurance renewal">
+  <defs>
+    <marker id="arr-sop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2a4a7f"/></marker>
+    <marker id="arr-sop-soft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a4b4cf"/></marker>
+  </defs>
+  <text x="360" y="20" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#5a6071">CAR-INSURANCE RENEWAL — VOCABULARY OVERVIEW</text>
+
+  <!-- actions row -->
+  <g font-family="-apple-system,sans-serif" font-size="12" font-weight="600">
+    <rect x="20"  y="40" width="120" height="40" rx="20" fill="#fff" stroke="#2a4a7f" stroke-width="2"/>
+    <text x="80"  y="64" text-anchor="middle" fill="#2a4a7f">Greeting</text>
+
+    <rect x="160" y="40" width="120" height="40" rx="20" fill="#fff" stroke="#2a4a7f" stroke-width="2"/>
+    <text x="220" y="64" text-anchor="middle" fill="#2a4a7f">VerifyPolicy</text>
+
+    <rect x="300" y="40" width="120" height="40" rx="20" fill="#fff" stroke="#2a4a7f" stroke-width="2"/>
+    <text x="360" y="64" text-anchor="middle" fill="#2a4a7f">DiscussPricing</text>
+
+    <rect x="440" y="40" width="120" height="40" rx="20" fill="#fff" stroke="#2a4a7f" stroke-width="2"/>
+    <text x="500" y="64" text-anchor="middle" fill="#2a4a7f">OfferDiscounts</text>
+
+    <rect x="580" y="40" width="120" height="40" rx="20" fill="#fff" stroke="#2a4a7f" stroke-width="2"/>
+    <text x="640" y="64" text-anchor="middle" fill="#2a4a7f">CloseRenewal</text>
+  </g>
+  <!-- forward arrows -->
+  <g stroke="#2a4a7f" stroke-width="2" fill="none">
+    <path d="M 140 60 L 158 60" marker-end="url(#arr-sop)"/>
+    <path d="M 280 60 L 298 60" marker-end="url(#arr-sop)"/>
+    <path d="M 420 60 L 438 60" marker-end="url(#arr-sop)"/>
+    <path d="M 560 60 L 578 60" marker-end="url(#arr-sop)"/>
+  </g>
+  <!-- back arrow: DiscussPricing → OfferDiscounts → DiscussPricing (loopback) -->
+  <path d="M 500 80 Q 430 130 360 80" stroke="#a4b4cf" stroke-width="1.5" stroke-dasharray="5,3" fill="none" marker-end="url(#arr-sop-soft)"/>
+  <text x="430" y="120" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="10.5" font-style="italic" fill="#5a6071">price still too high → re-discuss</text>
+
+  <!-- user_states band -->
+  <text x="20" y="170" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.08em" fill="#5a6071">USER STATES</text>
+  <g font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">
+    <rect x="20"  y="180" width="115" height="24" rx="3" fill="#e2eaf6" stroke="#a4b4cf"/><text x="78"  y="197" text-anchor="middle">informational</text>
+    <rect x="145" y="180" width="115" height="24" rx="3" fill="#e2eaf6" stroke="#a4b4cf"/><text x="203" y="197" text-anchor="middle">anxious_cost</text>
+    <rect x="270" y="180" width="115" height="24" rx="3" fill="#e2eaf6" stroke="#a4b4cf"/><text x="328" y="197" text-anchor="middle">comparison</text>
+    <rect x="395" y="180" width="115" height="24" rx="3" fill="#e2eaf6" stroke="#a4b4cf"/><text x="453" y="197" text-anchor="middle">ready_to_commit</text>
+    <rect x="520" y="180" width="115" height="24" rx="3" fill="#e2eaf6" stroke="#a4b4cf"/><text x="578" y="197" text-anchor="middle">abandoning</text>
+  </g>
+  <!-- cohorts/moods band -->
+  <text x="20" y="232" font-family="-apple-system,sans-serif" font-size="11" font-weight="700" letter-spacing="0.08em" fill="#5a6071">COHORTS × MOODS</text>
+  <g font-family="-apple-system,sans-serif" font-size="11">
+    <rect x="20"  y="244" width="155" height="24" rx="3" fill="#fbe7d6" stroke="#e0c4a8"/><text x="97"  y="261" text-anchor="middle" fill="#c4632c">PriceShopper · calm</text>
+    <rect x="185" y="244" width="175" height="24" rx="3" fill="#fbe7d6" stroke="#e0c4a8"/><text x="272" y="261" text-anchor="middle" fill="#c4632c">PriceShopper · frustrated</text>
+    <rect x="370" y="244" width="155" height="24" rx="3" fill="#fbe7d6" stroke="#e0c4a8"/><text x="447" y="261" text-anchor="middle" fill="#c4632c">LoyalCustomer · calm</text>
+    <rect x="535" y="244" width="165" height="24" rx="3" fill="#fbe7d6" stroke="#e0c4a8"/><text x="617" y="261" text-anchor="middle" fill="#c4632c">FirstTime · curious</text>
+  </g>
+</svg>
+<div class="caption">A simplified slice of the car-insurance renewal SOP. The full graph has 12 actions, 7 user states, and 7 cohorts × 3-4 moods each. The supervisor's job is to plan against this graph turn-by-turn.</div>
+</div>
+
+<div class="diagram">
+<svg viewBox="0 0 720 510" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SOP transition graph with data dependencies and happy path">
+  <defs>
+    <marker id="arr-grey-sop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a4b4cf"/></marker>
+    <marker id="arr-happy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4632c"/></marker>
+    <linearGradient id="happy-node-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff5ec"/>
+      <stop offset="100%" stop-color="#fbe7d6"/>
+    </linearGradient>
+  </defs>
+
+  <text x="360" y="22" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#5a6071">CAR-INSURANCE RENEWAL — TRANSITION GRAPH</text>
+  <text x="360" y="40" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-style="italic" fill="#5a6071">action nodes · user-state labels on edges · data-dep badges · one happy-path trajectory in coral</text>
+
+  <!-- Non-happy edges (light grey, drawn first so happy-path overlays) -->
+  <g stroke="#a4b4cf" stroke-width="1.5" fill="none">
+    <!-- E3: StateReason → AskLifeChanges (branch: NoChanges/Interested) -->
+    <path d="M 470 90 Q 470 135 445 175" marker-end="url(#arr-grey-sop)"/>
+    <!-- E6: AskLifeChanges → PitchDiscount -->
+    <path d="M 435 220 Q 410 270 380 305" marker-end="url(#arr-grey-sop)"/>
+    <!-- E7: PitchDiscount → HandlePriceObjection (branch: PriceConcern) -->
+    <path d="M 280 345 Q 215 385 165 410" marker-end="url(#arr-grey-sop)"/>
+    <!-- E9: HandlePriceObjection → CloseRenewal (recovery path: AgreedToRenew) -->
+    <path d="M 230 430 Q 365 470 500 432" marker-end="url(#arr-grey-sop)"/>
+  </g>
+
+  <!-- HAPPY PATH edges (coral, thicker, drawn after grey so on top) -->
+  <g stroke="#c4632c" stroke-width="2.5" fill="none">
+    <path d="M 170 65 L 198 65" marker-end="url(#arr-happy)"/>
+    <path d="M 330 65 L 378 65" marker-end="url(#arr-happy)"/>
+    <!-- StateReason → ReviewCurrentCoverage -->
+    <path d="M 420 90 Q 360 135 230 175" marker-end="url(#arr-happy)"/>
+    <!-- ReviewCurrentCoverage → PitchDiscount -->
+    <path d="M 230 220 Q 260 270 310 305" marker-end="url(#arr-happy)"/>
+    <!-- PitchDiscount → CloseRenewal (happy: Interested) -->
+    <path d="M 430 330 Q 480 380 520 412" marker-end="url(#arr-happy)"/>
+  </g>
+
+  <!-- User-state labels on edges (teal) -->
+  <g font-family="-apple-system,sans-serif" font-size="10.5" fill="#2c8485" font-weight="600">
+    <text x="280" y="130" text-anchor="middle">ReportingChange</text>
+    <text x="498" y="135" text-anchor="middle">Interested</text>
+    <text x="180" y="377" text-anchor="middle">PriceConcern</text>
+    <text x="490" y="358" text-anchor="middle" fill="#c4632c">Interested ★</text>
+    <text x="360" y="454" text-anchor="middle">AgreedToRenew</text>
+  </g>
+
+  <!-- Action nodes -->
+  <!-- Happy-path nodes get gradient fill + thicker coral stroke; others stay navy on white. -->
+  <g font-family="-apple-system,sans-serif" font-size="12" font-weight="700">
+    <!-- Greeting (happy) -->
+    <rect x="40"  y="50" width="130" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="105" y="70" text-anchor="middle" fill="#a04f1c">Greeting</text>
+    <!-- VerifyIdentity (happy) -->
+    <rect x="200" y="50" width="130" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="265" y="70" text-anchor="middle" fill="#a04f1c">VerifyIdentity</text>
+    <!-- StateReason (happy) -->
+    <rect x="380" y="50" width="130" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="445" y="70" text-anchor="middle" fill="#a04f1c">StateReason</text>
+
+    <!-- ReviewCurrentCoverage (happy) -->
+    <rect x="130" y="175" width="200" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="230" y="195" text-anchor="middle" fill="#a04f1c">ReviewCurrentCoverage</text>
+
+    <!-- AskLifeChanges (alt path, navy) -->
+    <rect x="350" y="175" width="170" height="30" rx="6" fill="#fff" stroke="#2a4a7f" stroke-width="1.5"/>
+    <text x="435" y="195" text-anchor="middle" fill="#2a4a7f">AskLifeChanges</text>
+
+    <!-- PitchDiscount (happy) -->
+    <rect x="260" y="305" width="170" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="345" y="325" text-anchor="middle" fill="#a04f1c">PitchDiscount</text>
+
+    <!-- HandlePriceObjection (recovery, navy) -->
+    <rect x="60"  y="410" width="170" height="30" rx="6" fill="#fff" stroke="#2a4a7f" stroke-width="1.5"/>
+    <text x="145" y="430" text-anchor="middle" fill="#2a4a7f">HandlePriceObjection</text>
+
+    <!-- CloseRenewal (happy, with ✓) -->
+    <rect x="500" y="410" width="170" height="30" rx="6" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="585" y="430" text-anchor="middle" fill="#a04f1c">CloseRenewal ✓</text>
+  </g>
+
+  <!-- Data-dep badges (mauve chips placed adjacent to their action) -->
+  <g font-family="SF Mono,Menlo,Consolas,monospace" font-size="9.5" fill="#6a4f8a">
+    <!-- VerifyIdentity → policy_lookup -->
+    <rect x="208" y="86" width="92" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="254" y="98" text-anchor="middle">policy_lookup</text>
+    <!-- ReviewCurrentCoverage → coverage, claims -->
+    <rect x="138" y="211" width="94" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="185" y="223" text-anchor="middle">coverage_data</text>
+    <rect x="238" y="211" width="92" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="284" y="223" text-anchor="middle">claims_history</text>
+    <!-- PitchDiscount → discounts, market -->
+    <rect x="268" y="341" width="74" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="305" y="353" text-anchor="middle">discounts</text>
+    <rect x="348" y="341" width="84" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="390" y="353" text-anchor="middle">market_quotes</text>
+    <!-- HandlePriceObjection → discount_eligibility -->
+    <rect x="68" y="446" width="118" height="16" rx="8" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="127" y="458" text-anchor="middle">discount_eligibility</text>
+  </g>
+
+  <!-- Legend (bottom) -->
+  <g font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">
+    <line x1="40"  y1="488" x2="78"  y2="488" stroke="#c4632c" stroke-width="2.5"/>
+    <text x="84"  y="492">happy path</text>
+    <line x1="180" y1="488" x2="218" y2="488" stroke="#a4b4cf" stroke-width="1.5"/>
+    <text x="224" y="492">branch / recovery</text>
+    <rect x="340" y="481" width="64" height="14" rx="3" fill="url(#happy-node-bg)" stroke="#c4632c" stroke-width="1.5"/>
+    <text x="412" y="492">agent action</text>
+    <text x="498" y="492" fill="#2c8485" font-weight="600">user-state label</text>
+    <rect x="614" y="481" width="50" height="14" rx="7" fill="#e8e0f0" stroke="#bda5d8"/>
+    <text x="639" y="491" text-anchor="middle" font-family="SF Mono,monospace" font-size="9" fill="#6a4f8a">data dep</text>
+  </g>
+</svg>
+<div class="caption">
+  The SOP as the supervisor actually plans against it: nodes are agent actions, edges carry the user-state label that triggers the transition, and the chips below each action are the data dependencies the supervisor prefetches when that action looks likely. The coral path is one representative successful trajectory; grey edges are off-trajectory branches (still legal moves the agent may need to take if the user enters a different state).
+</div>
+</div>
+
+<h2 id="numbers">The numbers that landed first</h2>
+
+<p>The first end-to-end measurement was encouraging in a way that turned out to be slightly misleading:</p>
+
+<table>
+<thead><tr><th>Session</th><th>Outcome</th><th>Off+1 hit rate</th><th>Off+2 hit rate</th><th>Latency hidden</th></tr></thead>
+<tbody>
+<tr><td>Baseline (no mood)</td><td>abandoned</td><td>50%</td><td>50%</td><td class="num">16.8 s</td></tr>
+<tr><td>Mood-aware</td><td><strong>success</strong></td><td>100%</td><td>100%</td><td class="num">16.8 s</td></tr>
+<tr><td>Mood + temperature 1.05</td><td><strong>success</strong></td><td>—</td><td>100%</td><td class="num"><strong>21.1 s</strong></td></tr>
+</tbody>
+</table>
+
+<div class="data-callout">
+<strong>What this said:</strong> the speculative prefetch pipeline was hiding tens of seconds of external-data latency per conversation. The user never waited for the customer-record lookup or the policy-document RAG; they were already in cache by the time the agent's next action needed them.
+</div>
+
+<p>We pushed to a five-session replication across all three SOPs. The data-prefetch result — confirming that speculative fetching worked at a production-relevant rate — came in at <strong>60-72% offset+2 hit rate</strong> across SOPs, with a mean of <strong>25-110 seconds of latency hidden per session</strong>.</p>
+
+<p>By that measurement, the architecture was working. The supervisor was earning its keep.</p>
+
+<h2 id="null">A null result that mattered</h2>
+
+<p>The other half of milestone (A) — could the supervisor predict the user's <em>state</em> at the next turn well enough to drive top-K hedging — produced one of those results that's intellectually annoying because it's correct.</p>
+
+<p>We measured prediction accuracy as: at each turn, take the modal user state across 8 parallel rollouts; check if it matches what the simulated user actually said next.</p>
+
+<table>
+<thead><tr><th>Category</th><th>Definition</th><th>Accuracy</th></tr></thead>
+<tbody>
+<tr><td><strong>Stable turns</strong></td><td>actual state = prior turn's state</td><td><strong>100%</strong> (13/13)</td></tr>
+<tr><td><strong>Transition turns</strong></td><td>actual state ≠ prior turn's state</td><td><strong>0%</strong> (0/8)</td></tr>
+<tr><td>Blended</td><td>all turns</td><td>62%</td></tr>
+</tbody>
+</table>
+
+<p>The headline 78% accuracy from an earlier session, it turned out, was an artifact of having mostly stable phases. The predictor was perfect when the conversation didn't change, and useless when it did. <strong>Modal aggregation of MCTS rollouts is a great predictor of inertia and a catastrophic predictor of change.</strong></p>
+
+<p>This is exactly the moment in conversational AI that matters most. Users transition — they shift from informational to anxious, from comparison-shopping to ready-to-commit. Transition turns are where the supervisor's predictions have the most leverage and where ours had none.</p>
+
+<p>We tried two interventions to fix it: temperature increases on the user-simulator (more sampling diversity) and per-rollout mood injection (sample a disposition at rollout start, fix it for that rollout's duration so different parallel rollouts get different moods). Neither moved the metric.</p>
+
+<p>Investigating why, we found a subtler pattern: <strong>mood diversity was working, but the state classifier was washing it out at depth 1</strong>. The rollouts were producing visibly different user text per mood ("I'm really anxious about the premium" vs "I'm ready to finalize the renewal"), but the state classifier compressed those into the same state label because the SOP's state vocabulary was descriptive, not affective. Mood-driven divergence only became visible at depth 2 — once the previous user-sim's text had had a chance to shift the agent's action, which the user then reacted to differently.</p>
+
+<p>That meant the offset+1 mispredictions weren't a bug to fix. They were an inherent property of the rollout structure with the state vocabulary we'd designed. The honest research conclusion was disappointing in its precision: <em>offset+1 will keep showing low transition accuracy; the work the architecture actually pays off on lives at offset+2 and +3, where mood-driven divergence has had time to compound.</em></p>
+
+<h2 id="mood">The mood detour</h2>
+
+<p>Even though mood diversity didn't fix offset+1, it did something we hadn't expected.</p>
+
+<p>We had given each cohort a small vocabulary of 3-4 "moods" — sample-able dispositions within the cohort's identity. A <code>PriceShopper</code> cohort could be in mood <code>calm_negotiator</code> (40% prior), <code>frustrated_with_quotes</code> (30%), <code>indifferent_to_brand</code> (20%), or <code>skeptical_of_value</code> (10%). At rollout start we'd draw one mood from the prior, fix it for that rollout, and inject it into the user-sim prompt.</p>
+
+<p>The intended effect was diversity at depth 1. The actual effect was much more interesting at depth 2 and 3:</p>
+
+<table>
+<thead><tr><th>Intervention</th><th>Distinct states predicted at offset+2</th><th>Distinct states at offset+3</th></tr></thead>
+<tbody>
+<tr><td>Baseline (no mood)</td><td>1.59</td><td>1.88</td></tr>
+<tr><td>Mood diversity</td><td><strong>3.00</strong> (+89%)</td><td><strong>3.31</strong> (+76%)</td></tr>
+</tbody>
+</table>
+
+<p>Almost a doubling. Mood didn't fix immediate transitions, but it produced genuinely diverse multi-turn future predictions where the supervisor had been emitting near-deterministic ones. And that diversity translated directly into prefetch wins at deeper offsets, where the supervisor has more time to overlap external-data work with the user's natural conversation pauses.</p>
+
+<p>We added the runtime side too: a classifier emits a <code>(cohort, mood, state)</code> tuple for each real turn, persisted to the precedent database, used to sharpen retrieval and conditioning over time. Zero added LLM calls — we folded mood into the existing cohort/state classifier prompt.</p>
+
+<h2 id="query">Asking the right question</h2>
+
+<p>By this point the data layer had a respectable track record on action-keyed prefetch. <em>"At turn N, prefetch the data dependencies of the action we predict at turn N+1."</em> Works well for static lookups: customer records, policy documents, the kind of data that doesn't depend on what the user is asking.</p>
+
+<p>But real production voice agents — actual ones, in production — don't make static lookups. They make <strong>questions</strong>. The user says, "Is windshield damage covered if I park on the street?" and the agent needs a RAG hit on policy docs that answer <em>that specific question</em>. The same SOP action covers a thousand different user questions; predicting only the action doesn't tell you what to query.</p>
+
+<p>We extended the architecture: every data dependency could optionally declare a <strong>query template</strong> with Python <code>str.format</code> placeholders:</p>
+
+<pre><code>{
+  "name": "claims_history_rag",
+  "kind": "rag",
+  "query_template": "{mood} customer in cohort {cohort} (state {state}) considering
+  action {action} just said: {user_text}. What claims-history facts would help
+  the agent respond?"
+}</code></pre>
+
+<p>The <code>{user_text}</code> slot is where it got interesting. The MCTS rollouts had been simulating user replies all along — generating natural-language text the imagined user would say in each rollout. We had been discarding that text after each rollout finished. The query-aware design made it load-bearing: <strong>the rollout's predicted user utterance becomes the query that drives the RAG retrieval</strong>.</p>
+
+<p>We hand-curated a 25-document insurance corpus, built a real RAG fetcher with semantic search, ran the verification. The plumbing worked end-to-end. The numbers were honest and mixed:</p>
+
+<table>
+<thead><tr><th>Criterion</th><th>Committed threshold</th><th>Observed</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Predicted-vs-live query embedding cosine</td><td>≥ 0.70 mean</td><td>0.547 mean</td><td><span class="pill pill-bad">Fail</span></td></tr>
+<tr><td>Top-3 doc Jaccard overlap</td><td>≥ 0.50 mean</td><td>0.157 mean</td><td><span class="pill pill-bad">Fail</span></td></tr>
+<tr><td>Mechanism functional end-to-end</td><td>working</td><td>working</td><td><span class="pill pill-ok">Pass</span></td></tr>
+<tr><td>≥ 1 doc shared between predicted and live RAG</td><td>(not committed)</td><td>60% of queries</td><td><span class="pill pill-warn">Partial</span></td></tr>
+</tbody>
+</table>
+
+<p>We had committed those thresholds before seeing the data. The honest read: the supervisor's predicted queries are <em>related</em> to what the user actually asks (60% of the time the predicted RAG and live RAG both returned at least one of the same documents), but not identical enough for an exact-match cache to dominate.</p>
+
+<p>For about a day we treated this as a failure. Then someone — credit to the right person — asked the obvious question that, in retrospect, should have been obvious sooner.</p>
+
+<h2 id="pool">The reframing that changed everything</h2>
+
+<p>The question was: <strong>"If the problem is that we can't predict exact cache keys, why are we using exact cache keys at all? The supervisor is smart. Why not give it all the cached data and ask it which items are useful for the current turn?"</strong></p>
+
+<p>This is the kind of question that makes you realize the architecture you've been building is shaped by an unexamined assumption. We had been treating the cache as a lookup table — predict the key precisely, look up the value. But the supervisor was already doing per-turn LLM work for classification. Adding one more small LLM call to <em>curate</em> the cache contents was cheap. And it solved the entire matching problem in one move.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Key-lookup vs pool architecture">
+  <defs>
+    <marker id="arr2-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5a6071"/></marker>
+    <marker id="arr2-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4632c"/></marker>
+  </defs>
+
+  <!-- KEY-LOOKUP -->
+  <text x="10" y="22" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#a8302c">KEY-LOOKUP — what we had</text>
+  <rect x="10" y="34" width="700" height="98" rx="6" fill="#fbf3f3" stroke="#e0c4c2"/>
+  <!-- prefetch box -->
+  <rect x="30" y="56" width="180" height="36" rx="4" fill="#fff" stroke="#a8302c"/>
+  <text x="120" y="79" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12.5" font-weight="600" fill="#a8302c">prefetch hashes key</text>
+  <path d="M 210 74 L 238 74" stroke="#5a6071" stroke-width="1.5" fill="none" marker-end="url(#arr2-grey)"/>
+  <!-- cache as kv -->
+  <rect x="240" y="50" width="280" height="48" rx="4" fill="#fff" stroke="#5a6071"/>
+  <text x="380" y="68" text-anchor="middle" font-family="SF Mono,Menlo,Consolas,monospace" font-size="11" fill="#1f2330">cache[hash(sess, dep, action, query)]</text>
+  <text x="380" y="86" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" fill="#5a6071">key → value</text>
+  <path d="M 522 74 L 555 74" stroke="#5a6071" stroke-width="1.5" fill="none" marker-end="url(#arr2-grey)"/>
+  <!-- live lookup -->
+  <rect x="555" y="56" width="135" height="36" rx="4" fill="#fff" stroke="#a8302c"/>
+  <text x="622" y="79" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600" fill="#a8302c">exact match or miss</text>
+  <text x="360" y="118" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-style="italic" fill="#a8302c">a mispredicted key wastes the fetch — there's no second chance.</text>
+
+  <!-- POOL -->
+  <text x="10" y="166" font-family="-apple-system,sans-serif" font-size="12" font-weight="700" letter-spacing="0.08em" fill="#2c8485">POOL — what we shipped</text>
+  <rect x="10" y="178" width="700" height="132" rx="6" fill="#d6ecec" stroke="#a4d1d2"/>
+  <!-- prefetch box -->
+  <rect x="30" y="200" width="180" height="36" rx="4" fill="#fff" stroke="#2c8485"/>
+  <text x="120" y="223" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="12.5" font-weight="600" fill="#2c8485">prefetch appends item</text>
+  <path d="M 210 218 L 238 218" stroke="#c4632c" stroke-width="1.5" fill="none" marker-end="url(#arr2-coral)"/>
+  <!-- pool box with mini items -->
+  <rect x="240" y="190" width="280" height="92" rx="4" fill="#fff" stroke="#2c8485"/>
+  <text x="380" y="207" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-weight="700" letter-spacing="0.05em" fill="#2c8485">SESSION POOL</text>
+  <g font-family="SF Mono,Menlo,Consolas,monospace" font-size="10" fill="#1f2330">
+    <rect x="248" y="214" width="264" height="14" fill="#f6f0e8"/><text x="252" y="225">POLICY · #INS-882431 · expires 06-15</text>
+    <rect x="248" y="230" width="264" height="14" fill="#fdf4ec"/><text x="252" y="241">DISCOUNTS · multi-policy 8% bundle</text>
+    <rect x="248" y="246" width="264" height="14" fill="#f6f0e8"/><text x="252" y="257">MARKET · peer_avg $1580/yr · Geico $1510</text>
+    <rect x="248" y="262" width="264" height="14" fill="#fdf4ec"/><text x="252" y="273">CLAIMS · 1 comp 09-24 windshield $720</text>
+  </g>
+  <path d="M 522 234 L 555 234" stroke="#c4632c" stroke-width="1.5" fill="none" marker-end="url(#arr2-coral)"/>
+  <!-- rerank step -->
+  <rect x="555" y="216" width="135" height="36" rx="4" fill="#fff" stroke="#c4632c"/>
+  <text x="622" y="239" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-weight="600" fill="#c4632c">per-turn rerank</text>
+  <text x="360" y="298" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11.5" font-style="italic" fill="#2c8485">mispredicted items stay available — every turn re-evaluates the whole pool.</text>
+</svg>
+<div class="caption">The architectural shift. The cache stops being a key-value lookup and becomes a session knowledge base that the supervisor curates per turn.</div>
+</div>
+
+<p>Failed predictions don't waste cache entries any more, because there's no "wrong key" — every fetched item stays in the pool as a candidate. The supervisor at turn N+1 sees the pool, sees the live user message, and picks. The mispredicted action that fetched <em>claims_history_rag</em> at turn 3 stays available at turn 8 when the live user actually does ask about claims, even though the original prediction said it would be needed at turn 5.</p>
+
+<p>We measured this against the previous key-lookup baseline on the same five sessions:</p>
+
+<table>
+<thead><tr><th>Pre-committed criterion</th><th>Threshold</th><th>Observed</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Effective hit rate vs key-lookup</td><td>> +20 pp</td><td class="num"><strong>+84 pp</strong> (96% vs 11%)</td><td><span class="pill pill-ok">Pass</span></td></tr>
+<tr><td>Rerank p95 latency</td><td>&lt; 800 ms</td><td class="num">2441 ms</td><td><span class="pill pill-bad">Fail</span></td></tr>
+</tbody>
+</table>
+
+<p>96% effective hit rate. Sixty-five of sixty-eight rerank calls picked at least one useful item. The query-aware prefetch's "60% partial overlap" signal had been telling us this all along — the data was useful; the cache architecture just couldn't surface it.</p>
+
+<p>The latency miss was structural: the pool grew to its 30-item cap and the rerank prompt carried all 30 summaries, which the fast model took about 2.4 seconds to process. So we set out to fix it.</p>
+
+<p class="pull">The hardest research moment of the project wasn't a measurement that failed. It was the realization that the question we'd been measuring was the wrong question.</p>
+
+<h2 id="latency">The latency story (and what it taught us)</h2>
+
+<p>The intended fix was straightforward. Embedding similarity is cheap. Compute the cosine between the live user message and each pool summary, keep the top 8, send only those to the rerank LLM. Input tokens fall from 6-8K to ~1.8K. Latency should follow.</p>
+
+<p><strong>The first measurement said otherwise.</strong></p>
+
+<table>
+<thead><tr><th>Metric</th><th>Pre-fix (all 30 items)</th><th>Input filter (top-8 by cosine)</th></tr></thead>
+<tbody>
+<tr><td>Input tokens to rerank</td><td class="num">~6-8K</td><td class="num">~1.8K</td></tr>
+<tr><td>Mean rerank latency</td><td class="num">~1900 ms</td><td class="num">1698 ms</td></tr>
+<tr><td>p95 rerank latency</td><td class="num">2441 ms</td><td class="num">2452 ms</td></tr>
+</tbody>
+</table>
+
+<p>Input-token reduction did almost nothing for tail latency. The fast model's call cost is dominated by the LLM call itself, not by the size of the prompt — at this scale the prompt processing is already fast and the generation+RTT bucket isn't sensitive to a ~4× input shrink. We had been optimizing the wrong term.</p>
+
+<div class="latency-chart" aria-label="Rerank mean and p95 latency by version">
+  <div class="lat-row">
+    <div class="lat-label">baseline</div>
+    <div class="lat-track"><div class="lat-bar b-base" style="width: 89%;">2441 ms · p95</div><div class="lat-target" style="left: 29%;"></div></div>
+    <div class="lat-note">mean ~1900</div>
+  </div>
+  <div class="lat-row">
+    <div class="lat-label">input filter</div>
+    <div class="lat-track"><div class="lat-bar b-v1" style="width: 90%;">2452 ms · p95</div><div class="lat-target" style="left: 29%;"></div></div>
+    <div class="lat-note">mean 1698</div>
+  </div>
+  <div class="lat-row">
+    <div class="lat-label">confidence gate</div>
+    <div class="lat-track"><div class="lat-bar b-v2" style="width: 79%;">2167 ms · p95</div><div class="lat-target" style="left: 29%;"></div></div>
+    <div class="lat-note">mean 1523</div>
+  </div>
+  <div class="lat-row">
+    <div class="lat-label">cosine + dedup</div>
+    <div class="lat-track"><div class="lat-bar b-v3" style="width: 16%;"></div><span class="lat-bar-out" style="left: calc(16% + 8px);">429 ms · p95 ✓</span><div class="lat-target" style="left: 29%;"></div></div>
+    <div class="lat-note">mean 320</div>
+  </div>
+  <div class="lat-row" style="margin-top: 6px;">
+    <div class="lat-label"></div>
+    <div style="position: relative; font-size: 11px; font-family: -apple-system,sans-serif; color: #5a6071;">
+      <span style="position: absolute; left: 29%; transform: translateX(-50%);" class="lat-target-label">800 ms target</span>
+      <span style="position: absolute; right: 0;">2700 ms →</span>
+    </div>
+    <div></div>
+  </div>
+</div>
+<div class="caption" style="text-align: center; font-style: italic; color: #5a6071; font-family: -apple-system,sans-serif; font-size: 13px; margin-top: 28px;">
+  Rerank-step latency across the four iterations. The final design (cosine + dedup, no LLM call) clears the pre-committed 800 ms threshold by a comfortable margin.
+</div>
+
+<p>The reframe: <em>if pre-filtering the pool reduces the rerank to a routine top-K selection, the LLM has nothing meaningful left to decide on the easy turns — we should just skip it.</em> So we built a second intervention. After computing the cosines, check whether the embedding ranking is decisive enough that the LLM rerank would be a no-op: K-th item must clear an absolute floor (0.50), and the gap between K-th and (K+1)-th must exceed a confidence margin (0.05). When both clear, return the top-K by cosine and skip the LLM call. We expected 60-80% adoption on a 5-session re-run.</p>
+
+<p>The adoption rate was <strong>0%</strong>.</p>
+
+<div class="data-callout">
+<strong>Why the gate was unreachable:</strong> across 44 rerank events on the re-run, K-th cosine never exceeded 0.421 (against a 0.50 floor), and the median gap between K-th and (K+1)-th was 0.013 (against a 0.05 margin). The pool just doesn't produce cliffs — it produces a tight cluster.
+</div>
+
+<div class="numline" aria-label="Cosine distribution vs gate threshold">
+<svg viewBox="0 0 720 130" xmlns="http://www.w3.org/2000/svg">
+  <!-- axis -->
+  <line x1="60" y1="80" x2="680" y2="80" stroke="#5a6071" stroke-width="1.5"/>
+  <g font-family="-apple-system,sans-serif" font-size="11" fill="#5a6071">
+    <line x1="60"  y1="76" x2="60"  y2="84" stroke="#5a6071"/><text x="60"  y="100" text-anchor="middle">0.0</text>
+    <line x1="184" y1="76" x2="184" y2="84" stroke="#5a6071"/><text x="184" y="100" text-anchor="middle">0.2</text>
+    <line x1="308" y1="76" x2="308" y2="84" stroke="#5a6071"/><text x="308" y="100" text-anchor="middle">0.4</text>
+    <line x1="432" y1="76" x2="432" y2="84" stroke="#5a6071"/><text x="432" y="100" text-anchor="middle">0.6</text>
+    <line x1="556" y1="76" x2="556" y2="84" stroke="#5a6071"/><text x="556" y="100" text-anchor="middle">0.8</text>
+    <line x1="680" y1="76" x2="680" y2="84" stroke="#5a6071"/><text x="680" y="100" text-anchor="middle">1.0</text>
+  </g>
+  <!-- observed K-th band (0.149 – 0.421) -->
+  <rect x="152" y="62" width="169" height="18" fill="#2c8485" fill-opacity="0.25" stroke="#2c8485" stroke-width="1"/>
+  <text x="237" y="56" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11" fill="#2c8485" font-weight="600">observed K-th cosine</text>
+  <text x="237" y="118" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="10.5" fill="#5a6071">min 0.149 · p50 0.336 · max 0.421</text>
+  <!-- median tick -->
+  <line x1="268" y1="58" x2="268" y2="82" stroke="#2c8485" stroke-width="2"/>
+  <!-- gate floor 0.50 -->
+  <line x1="370" y1="40" x2="370" y2="90" stroke="#a8302c" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="370" y="34" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="11" fill="#a8302c" font-weight="700">gate floor 0.50</text>
+  <text x="370" y="118" text-anchor="middle" font-family="-apple-system,sans-serif" font-size="10.5" fill="#a8302c">cleared 0% of events</text>
+  <!-- gap (annotated separately) -->
+</svg>
+<div style="text-align: center; font-style: italic; color: #5a6071; font-family: -apple-system,sans-serif; font-size: 12.5px; margin-top: -2px;">
+  Where the data actually lives, vs where the gate sat. Even the maximum observed K-th cosine fell short of the threshold.
+</div>
+</div>
+
+<p>So we instrumented one level deeper. For every rerank event in the run, reconstruct the pool, embed everything, and look at the distribution of cosines and gaps that the LLM was actually choosing among:</p>
+
+<table>
+<thead><tr><th>Quantity</th><th>Required by gate</th><th>p50</th><th>p90</th><th>Max</th></tr></thead>
+<tbody>
+<tr><td>K-th cosine (K=3)</td><td>≥ 0.50</td><td class="num">0.336</td><td class="num">0.398</td><td class="num">0.421</td></tr>
+<tr><td>Gap K-th vs (K+1)-th</td><td>≥ 0.05</td><td class="num">0.013</td><td class="num">0.078</td><td class="num">0.101</td></tr>
+<tr><td>Pool top-8 cosines</td><td>—</td><td class="num">0.303</td><td class="num">0.414</td><td class="num">0.641</td></tr>
+</tbody>
+</table>
+
+<p>Pool items are conversationally adjacent — they're all about the same renewal, the same customer, the same SOP. Cosines bunch in a low band; there are no clear winners. The gate concept assumed the supervisor would face the occasional "obvious top-3" turn that didn't need an LLM. The data says <em>every turn</em> is a close call.</p>
+
+<p>But there's a more interesting finding hiding in the same data. We compared what the LLM actually picked against what the embedding ranking would have picked:</p>
+
+<div class="data-callout">
+<strong>The deeper signal:</strong> 87% of the LLM's picks were already in the embedding top-8. In 77% of events, <em>all</em> of the LLM's picks were in the top-8. Where the LLM and embedding diverged, it was about rank within the top-N, not about which items were good candidates. One pattern that stood out: the LLM was doing dedup work that the embedding ranking can't, picking distinct items where the embedding would have picked near-duplicates.
+</div>
+
+<p>A concrete example from the run — turn 6 of session <code>42f9e1b2afda</code>, where the LLM and the pure-cosine ranking diverged:</p>
+
+<div class="pool-snapshot">
+  <div class="live-msg"><strong>user:</strong> I appreciate that, but I'm also wondering if you could give me an idea of the estimated savings…</div>
+  <div class="items">
+    <div class="pool-item pick">
+      <span class="cos">0.377</span><span class="dep market">MARKET</span>
+      <span class="summary">same zip+vehicle+age band: peer_avg $1580/yr, Geico $1510 ($-90 vs ours)</span>
+      <span class="status">pick</span>
+    </div>
+    <div class="pool-item pick">
+      <span class="cos">0.337</span><span class="dep policy">POLICY</span>
+      <span class="summary">#INS-882431 · expires 2026-06-15 · 2022 Honda Civic LX</span>
+      <span class="status">pick</span>
+    </div>
+    <div class="pool-item dup">
+      <span class="cos">0.337</span><span class="dep policy">POLICY</span>
+      <span class="summary">#INS-882431 · expires 2026-06-15 · 2022 Honda Civic LX</span>
+      <span class="status">dedup</span>
+    </div>
+    <div class="pool-item pick">
+      <span class="cos">0.305</span><span class="dep discounts">DISCOUNTS</span>
+      <span class="summary">multi-policy 8% (eligible — has homeowner), paid-in-full 5%, good-driver…</span>
+      <span class="status">pick</span>
+    </div>
+    <div class="pool-item skip">
+      <span class="cos">0.221</span><span class="dep claims">CLAIMS</span>
+      <span class="summary">0 at-fault (3yr); 1 comprehensive 2024-09 (windshield, $720 paid)</span>
+      <span class="status">tail</span>
+    </div>
+  </div>
+</div>
+<div class="caption" style="text-align: center; font-style: italic; color: #5a6071; font-family: -apple-system,sans-serif; font-size: 12.5px; margin-top: -10px;">
+  The final design's behavior on this turn: cosine-rank, drop the second POLICY (key-equal dedup), take the next-best.
+  The LLM had picked the same three items, but reached them by reasoning rather than by ranking.
+</div>
+
+<p>The right intervention isn't the gate we built. It's the opposite shape: <em>always skip the LLM, take top-3 by cosine after a dedup pass; only fall back to the LLM in narrow conditions (e.g., when the top-3 contains near-duplicates the dedup couldn't resolve)</em>. The original "skip when confident" framing was answering <em>is the signal good enough.</em> The data says the signal is good enough on average; the question is <em>where does the LLM add unique value,</em> and the honest answer turns out to be a smaller surface than we'd assumed.</p>
+
+<p>The input-filter pre-pass did deliver a real but modest latency reduction (mean 1900 → 1523 ms, p95 2441 → 2167 ms across the confidence-gate sessions, with the gate firing zero times). That ~10% comes from the smaller prompts and variance — the gate logic itself was inert.</p>
+
+<h3>Removing the LLM from the rerank — and the quality regression that followed</h3>
+
+<p>The final design removed the rerank LLM from the critical path entirely. Compute cosines, dedup near-duplicates, take top-3, return. Five new sessions, same SOP, same MCTS config:</p>
+
+<table>
+<thead><tr><th>Metric</th><th>LLM rerank</th><th>Cosine + dedup</th><th>Delta</th></tr></thead>
+<tbody>
+<tr><td>Mean rerank latency</td><td class="num">1523 ms</td><td class="num">378 ms</td><td class="num">−75%</td></tr>
+<tr><td>p95 rerank latency</td><td class="num">2167 ms</td><td class="num">940 ms</td><td class="num">−57%</td></tr>
+<tr><td>Effective hit rate</td><td class="num">95%</td><td class="num">100%</td><td class="num">+5 pp</td></tr>
+<tr><td><strong>Session success rate</strong></td><td class="num"><strong>5/5</strong></td><td class="num"><strong>3/5</strong></td><td><span class="pill pill-bad">regression</span></td></tr>
+</tbody>
+</table>
+
+<p>The latency win was clean. The success rate dropped from five out of five to three. Two abandoned sessions, both fitting the same shape: the user winds down with pleasantries — "Thank you for your help, I'll review the options and get back to you" — and the agent, instead of closing, keeps offering discounts and reviewing coverage. The conversation loops politely until the turn cap.</p>
+
+<p>The cause was visible in the data once we looked at the right thing. On those closing turns, the top pool cosine fell to 0.10–0.18 — there was nothing in the pool actually about what the user just said, because pleasantries don't match prefetched insurance data. But the cosine+dedup rerank still picked three items and injected them into the response prompt. The agent dutifully responded about the items it was given.</p>
+
+<div class="data-callout">
+<strong>Pick-count distribution tells the story:</strong> the LLM rerank picked zero items on 4% of turns (its prompt explicitly said "Picking nothing is fine if the pool doesn't fit"). The cosine+dedup rerank picked zero items on 0% of turns — it always returned max_picks regardless of cosine. On low-relevance turns this meant force-feeding the agent off-topic data exactly when it needed to be reading the room.
+</div>
+
+<h3>The fix wasn't a threshold</h3>
+
+<p>The reflex was to add a cosine floor: if top-cos &lt; 0.20, return zero picks. It would have worked. But it was the wrong shape of intervention — a brittle heuristic on top of another brittle heuristic, with a threshold to tune.</p>
+
+<p>The actual problem was that the response-generation prompt was lying to the agent. The label on the prefetched context block read <code>PREFETCHED CONTEXT (curated by supervisor — high relevance to current turn)</code>. That's how it had been framed since the pool's first day. The label was reasonable when there was an LLM rerank deciding which items to attach; it stopped being reasonable when the cosine-only rerank began attaching three items by similarity alone. The label kept claiming the items were curated and high-relevance. Sometimes they were neither.</p>
+
+<p>An async architecture's predictions are <em>speculative by definition</em> — the supervisor decides what to fetch before knowing what the user will actually say. The blackboard surface is a suggestion, not a directive. The response prompt should say so:</p>
+
+<pre><code>PREFETCHED CONTEXT (speculatively pre-staged — may or may not fit this turn):
+The supervisor pre-fetched these items based on predictions about what the user
+might ask. They may help your reply, or they may be off-topic — especially when
+the user is wrapping up, making small talk, or asking about something
+unanticipated.
+
+Evaluate each item against what the user just said. Use what is relevant; ignore
+what isn't. If nothing fits the current message, reply naturally as if no context
+was provided — do NOT force irrelevant data into the response.
+
+  · [POLICY — VerifyIdentity] #INS-882431 expires 2026-06-15…
+  · [DISCOUNTS — PitchDiscount] multi-policy 8% bundle eligible…
+  · [MARKET — DiscussPricing] peer_avg $1580/yr · Geico $1510…
+</code></pre>
+
+<p>Five more sessions. Same SOP. Same cosine + dedup rerank. Only the prompt changed.</p>
+
+<table>
+<thead><tr><th>Metric</th><th>Curated framing</th><th>Speculative framing</th><th>Delta</th></tr></thead>
+<tbody>
+<tr><td>Mean rerank latency</td><td class="num">378 ms</td><td class="num">320 ms</td><td class="num">−15% (noise)</td></tr>
+<tr><td>p95 rerank latency</td><td class="num">940 ms</td><td class="num">429 ms</td><td class="num">−54%</td></tr>
+<tr><td>Effective hit rate</td><td class="num">100%</td><td class="num">100%</td><td class="num">—</td></tr>
+<tr><td><strong>Session success rate</strong></td><td class="num">3/5</td><td class="num"><strong>4/5 + 1 cap-hit</strong></td><td><span class="pill pill-ok">recovered</span></td></tr>
+</tbody>
+</table>
+
+<p>4 of 5 closed with success. The fifth was making productive progress through coverage adjustments and a loyalty bonus and hit the 20-turn cap on the literal turn the user said "I'm ready to renew." Unrelated to rerank — an action-proposer / turn-budget question, on the list for a separate look.</p>
+
+<p>The p95 latency dropped further too, which we don't fully understand at N=5 — possibly OpenAI embedding RTT variance, possibly real signal. The headline is that <strong>cosine + dedup, with the speculative-context prompt, clears the pre-committed 800 ms target at 429 ms p95</strong>, with no quality regression.</p>
+
+<p>What we're taking from this stretch:</p>
+<ul>
+  <li><strong>Latency budgets aren't all in the prompt.</strong> "Make the prompt smaller" is the first reflex; on fast models with small outputs, it's also the cheap one to discover doesn't matter much.</li>
+  <li><strong>Pre-committing the gate before seeing the distribution was the right call.</strong> If we'd tuned the gate against the same data it would fire on, the adoption rate would have been a meaningless metric. The 0% result is honest and falsifies the design rather than the data.</li>
+  <li><strong>Where the LLM adds real value is narrower than it looked.</strong> 87% overlap with a cheap baseline is a result about the LLM as much as about the embedding.</li>
+  <li><strong>The prompt should match the architecture's honesty about uncertainty.</strong> An async system's predictions can be wrong; the prompt that consumes those predictions has to say so out loud. "Curated by supervisor — high relevance" was a comfortable fiction; "speculatively pre-staged — may or may not fit" is the truth. Telling the truth turned out to be the cheapest, most general fix to a regression that a threshold-based intervention would have papered over.</li>
+</ul>
+
+<h2 id="mcts-value">Did the clever planner actually pay off?</h2>
+
+<p>By this point the whole architecture leaned on a quietly expensive component: <strong>background MCTS pondering</strong>. Between turns, the supervisor was running Monte Carlo tree search over the SOP — simulating future user states, mood-diverse rollouts, the works — to predict what the user would need next and prefetch it. It's the most intellectually satisfying part of the system. So naturally, it was the part we'd never actually <em>measured the value of</em>.</p>
+
+<p>The uncomfortable question: prefetching is fundamentally a prediction problem — predict the next agent action (which names the data to fetch), predict the query. Does an MCTS planner predict those better than something dumb and cheap? Or were we paying ~25,000 tokens and ten seconds a turn for a clever method that a database query beats?</p>
+
+<p>We split "retrieval prediction" into the three things it actually is:</p>
+<ul>
+  <li><strong>Which data source</strong> — i.e. predict the next agent action. (Actions declare their data dependencies.)</li>
+  <li><strong>Structured parameters</strong> — "<em>this</em> customer's policy, vehicle, zip." These aren't predicted at all; they're session facts already sitting on the blackboard once identity is verified.</li>
+  <li><strong>The free-text query</strong> — the actual RAG question, which depends on the specific thing the user is about to ask. This one is genuinely generative; counting can't produce a novel sentence.</li>
+</ul>
+
+<p>Then we measured each, head-to-head, against three predictors: MCTS, a cheap single LLM call, and the boring <strong>empirical predictor</strong> — a SQL count over past sessions: <em>"last time the agent was in this exact (cohort, state, action), what did it do next?"</em></p>
+
+<p><strong>Sub-task one — predicting the next action.</strong> Scored against ground truth on 50 real turn-transitions:</p>
+
+<table>
+<thead><tr><th>Predictor</th><th>recall@3</th><th>latency</th><th>tokens/turn</th></tr></thead>
+<tbody>
+<tr><td><strong>empirical</strong> (count over traces)</td><td class="num"><strong>88%</strong></td><td class="num">~1 ms</td><td class="num"><strong>0</strong></td></tr>
+<tr><td>naive LLM (one call)</td><td class="num">38%</td><td class="num">1.6 s</td><td class="num">~1.6K</td></tr>
+<tr><td>MCTS pondering</td><td class="num">33%</td><td class="num">10.6 s</td><td class="num">~25.6K</td></tr>
+</tbody>
+</table>
+
+<div class="data-callout"><strong>The counting baseline crushed both clever methods.</strong> And it makes sense in hindsight: predicting an agent's next move is a question about its <em>habits</em>, not its reasoning. The empirical predictor literally memorizes the agent's policy from past traces. MCTS and the LLM both reason about a <em>hypothetical</em> future — and do worse, at a thousand to ten-thousand times the token cost.</div>
+
+<p><strong>Sub-task three — the generative query.</strong> Here counting genuinely can't help; you need to predict the user's next sentence. So this should be MCTS's moment — its rollouts <em>do</em> generate simulated user utterances. We rendered the RAG query three ways and measured retrieved-document overlap against the query built from the user's <em>actual</em> next utterance. And because we suspected the answer depends on how fine-grained the knowledge base is, we ran it across three corpus sizes:</p>
+
+<table>
+<thead><tr><th>{user_text} source</th><th>coarse (25 docs)</th><th>fine (44)</th><th>large (63)</th><th>tokens</th></tr></thead>
+<tbody>
+<tr><td>structured stub (no prediction)</td><td class="num">70%</td><td class="num">48%</td><td class="num">43%</td><td class="num">0</td></tr>
+<tr><td><strong>cheap LLM</strong> (one call)</td><td class="num">73%</td><td class="num"><strong>62%</strong></td><td class="num"><strong>54%</strong></td><td class="num">~300</td></tr>
+<tr><td>MCTS rollouts</td><td class="num">60%</td><td class="num">~60%</td><td class="num">~60%</td><td class="num">~25.6K</td></tr>
+</tbody>
+</table>
+
+<p>Two things jumped out. First, on a <em>coarse</em> corpus — one doc per topic — even the no-prediction stub hits 70%, because the structured slots (cohort, state, action) already pick the right document. The generative query barely matters. But as the corpus gets finer — many documents sharing a topic, differing only by the specific situation ("teen driver" vs "spouse" vs "elderly parent") — the stub collapses (70 → 43%) while the cheap LLM holds an 11–14 point lead. <strong>The value of generative query prediction scales with how fine-grained your knowledge base is.</strong></p>
+
+<p>Second, and this is the punchline: <strong>the cheap single LLM call matched MCTS's rollout-based prediction — at roughly 1/85th the token cost.</strong> MCTS never won. Not on actions, not on queries.</p>
+
+<div class="data-callout"><strong>So we retired MCTS from the retrieval path entirely.</strong> The new shape: the empirical count predicts the action and pulls the structured params off the blackboard; a single cheap LLM call fills the one genuinely-generative slot (the RAG query), and only when a RAG-needing action is actually in the predicted horizon. MCTS for neither. Net result: a <strong>~99% token reduction</strong> on the prediction path, with <em>higher</em> action accuracy.</div>
+
+<p>There's a nice external echo here: a concurrent paper, <a href="https://arxiv.org/abs/2603.18897">PASTE</a>, independently found that pattern-mined speculation from execution traces beats search-based lookahead for deciding what to pre-execute. Different domain (tool calls during reasoning vs data prefetch during speech), same lesson: for "what will this system do next," remembering beats simulating.</p>
+
+<p>The honest caveats: the fine and large corpora are constructed stress-tests (realistic situation-variants, but we built them, not production data). And MCTS isn't dead — it keeps a role for <em>cold start</em> (when no traces have accumulated yet, there's nothing to count) and for its cached-decision payoff. But for warm-state retrieval prediction, the clever planner lost to a SQL query and a 300-token nudge. We kept it in the architecture and pointed the recommended config away from it.</p>
+
+<h2 id="now">Where it stands</h2>
+
+<p>The data-prefetch half of the architecture is now confirmed across all three seed SOPs at five sessions each:</p>
+
+<ul>
+  <li>Action-keyed prefetch: 60-72% hit rate at offset+2; 25-110 seconds of latency hidden per session.</li>
+  <li>Query-aware prefetch: 60% partial document overlap, surfacing via pool curation at 96% effective hit rate.</li>
+  <li>Mood-aware retrieval: shipped end-to-end, sharpens both precedent retrieval and empirical action prediction; doubled state-distribution diversity at offset+2/+3.</li>
+  <li>Pool-based cache architecture: 100% effective hit rate, p95 latency 429 ms — under the pre-committed 800 ms target.</li>
+</ul>
+
+<p>Instruction prefetch — pre-generating the agent's actual response text for predicted future turns — is the next big test. The mechanism exists (the same response-generation call we use today); the question is whether the supervisor's lookahead is sharp enough that the pre-staged response is close enough to what the live agent would produce that the voice agent can use it verbatim. The architecture supports it naturally: pre-staged responses simply join the pool as <code>kind=instruction</code> items alongside <code>kind=data</code> items, and the same rerank decides between them.</p>
+
+<p>The honest open items:</p>
+
+<ul>
+  <li><strong>Latency</strong>. Resolved for this iteration. Removing the rerank LLM lands the pool architecture at 320 ms mean / 429 ms p95 — comfortably under the pre-committed 800 ms target. The honest caveat: this is measured on N=5 with the legacy <code>tier3_enabled=True</code> config; re-verification under the locked no-live-MCTS configuration is the next measurement.</li>
+  <li><strong>Locked architectural decisions</strong>. Two design choices stabilised over the latency stretch and now belong in the spec rather than being live questions. <em>(1)</em> Live MCTS is removed from the critical path — it runs in the background only, seeding the pool, with the live agent reading prefetched results. The economics of per-turn MCTS at scale don't work, and the pool architecture makes background-only MCTS the natural shape. <em>(2)</em> Pondering rollouts feed the data-prefetch manager — without that, removing live MCTS would have starved the pool, leading to a 59% live-fallback rate in an earlier run. The fix was one routing change and reconnects the architecture.</li>
+  <li><strong>Cold start</strong>. Most of our wins depend on accumulated precedent traces — and since we retired MCTS from the warm-state retrieval path (it lost to the empirical count), cold start is now <em>the</em> place MCTS still earns its keep: when there are no traces to count, simulating the future beats having nothing. The open question is the hand-off — how many real sessions before the empirical predictor takes over.</li>
+  <li><strong>Production calibration</strong>. The smart human simulator we used for tests is honest but not real users. Some claims will need real-call data before they can carry weight in a production conversation.</li>
+</ul>
+
+<p>What we set out to ask is now answerable with measurements rather than intuition:</p>
+
+<blockquote>
+<p><em>Can the supervisor predict the next 1-N turns of conversation well enough to pre-process the data and instructions that the weak voice agent will need?</em></p>
+<p>For data: yes, at production-relevant rates, validated across three scenarios.</p>
+<p>For instructions: the mechanism is built and the architecture supports it; we haven't tested it end-to-end yet.</p>
+</blockquote>
+
+<h2 id="refs">Sources, influences, prior art</h2>
+
+<p>This work was built standing on a few people's shoulders:</p>
+
+<ul>
+  <li><a href="https://arxiv.org/html/2312.13925v1">AsyncMLD (arXiv:2312.13925)</a> — the asynchronous decoupling pattern at the heart of everything we did. We're not the first to put a slow brain behind a fast actor; we're translating that pattern from robotics into conversational AI.</li>
+  <li><a href="https://arxiv.org/html/2407.03884v1">PCA-M (arXiv:2407.03884)</a> — the planning-based conversational agents paper whose MCTS-over-SOPs structure we built on directly. The notion of treating action selection as a tree search rather than a single LLM call is theirs.</li>
+  <li>The conversation-as-tree-search framing implicit in many recent dialogue-policy papers, which we treated more as common air than as specific citations.</li>
+</ul>
+
+<p>The pieces that we think are our own contribution rather than borrowed:</p>
+
+<ul>
+  <li>Per-cohort mood vocabularies with sample-able priors, and the demonstration that rollout-side mood diversity meaningfully sharpens multi-turn state predictions even when single-turn predictions don't move.</li>
+  <li>The query-aware data prefetch design where rollout-generated user utterances drive parameterized RAG/KG queries, with the honest finding that exact-cache matching against those predictions is the wrong measurement.</li>
+  <li>The pool-based cache architecture — replacing the brittle key-lookup with supervisor-curated session knowledge, which we believe is the production-correct shape for this class of system and which we've measured as decisively better than key-lookup on the data we have.</li>
+  <li>The methodological practice of committing thresholds in writing before each measurement and being explicit when our committed thresholds turn out to have been guesses, separately from whether the architecture itself works.</li>
+</ul>
+
+<p>The full dated research notes, including the failed interventions and the unflattering data, are part of the project's archive. We left them in because the path matters as much as the destination, and the path here had a lot of useful wrong turns.</p>
+
+<footer>
+<p>The architecture continues to develop. Three latency interventions have now run end-to-end (input filter, confidence gate, and the final cosine+dedup design with no LLM). The pre-committed 800 ms p95 target is hit at 429 ms, with no quality regression once the response-generation prompt was updated to reflect the speculative nature of the pool. Next: re-verify under the locked no-live-MCTS configuration, then turn to instruction prefetch — pre-staging the agent's actual response text for predicted future turns.</p>
+<p>If you'd like to discuss any of this — particularly the production-architecture questions about cold start, voice-agent integration, or where the pool model breaks at scale — get in touch.</p>
+</footer>
+
+</body>
+</html>

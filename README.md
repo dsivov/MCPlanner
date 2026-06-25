@@ -13,7 +13,7 @@ SOP-Constrained Voice Agents"* (`paper/`) and the research write-up
 - **📖 Research story (blog):** https://dsivov.github.io/MCPlanner/
 - **📄 Paper (PDF):** https://dsivov.github.io/MCPlanner/paper/paper.pdf
 
-*(both require GitHub Pages enabled: Settings → Pages → Deploy from branch `main`, folder `/`)*
+*(published via GitHub Pages from the `docs/` folder on `main`)*
 
 ---
 
