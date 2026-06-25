@@ -235,6 +235,7 @@
     <li><a href="#pool">The reframing that changed everything</a></li>
     <li><a href="#latency">The latency story (and what it taught us)</a></li>
     <li><a href="#mcts-value">Did the clever planner actually pay off?</a></li>
+    <li><a href="#regret">Putting a number on the misses</a></li>
     <li><a href="#now">Where it stands</a></li>
     <li><a href="#refs">Sources, influences, prior art</a></li>
   </ol>
@@ -1025,6 +1026,32 @@ was provided — do NOT force irrelevant data into the response.
 <p>There's a nice external echo here: a concurrent paper, <a href="https://arxiv.org/abs/2603.18897">PASTE</a>, independently found that pattern-mined speculation from execution traces beats search-based lookahead for deciding what to pre-execute. Different domain (tool calls during reasoning vs data prefetch during speech), same lesson: for "what will this system do next," remembering beats simulating.</p>
 
 <p>The honest caveats: the fine and large corpora are constructed stress-tests (realistic situation-variants, but we built them, not production data). And MCTS isn't dead — it keeps a role for <em>cold start</em> (when no traces have accumulated yet, there's nothing to count) and for its cached-decision payoff. But for warm-state retrieval prediction, the clever planner lost to a SQL query and a 300-token nudge. We kept it in the architecture and pointed the recommended config away from it.</p>
+
+<h2 id="regret">Putting a number on the misses</h2>
+
+<p>We built the supervisor to <em>guess</em> what the user will need next and fetch it early. Good guesses feel like magic — the answer is already sitting in the pool when the agent reaches for it. But guessing means sometimes guessing <strong>wrong</strong>, and a wrong guess shows up as a stall: the agent reaches into the pool, finds nothing, and has to stop and fetch the data live while the user waits.</p>
+
+<p>So the fair question is: across a whole run, <strong>how much waiting did our guessing fail to prevent?</strong></p>
+
+<p>There's a clean way to measure that, borrowed from a classic idea called <em>regret</em> (a reviewer nudged us toward it — it comes from the multi-armed bandit literature). Imagine a perfect oracle that knows the future and prefetches everything correctly — it never stalls. <strong>Regret is just the gap between that oracle and us:</strong> the total seconds of "oops, fetch it live" stalls we <em>didn't</em> manage to hide.</p>
+
+<p>We added up every one of those live-stall fetches across the cross-SOP run — three procedures (car insurance, credit card, medical booking), five conversations each. Here's what came out:</p>
+
+<table>
+<tr><th>Across 15 conversations, 3 SOPs</th><th class="num"></th></tr>
+<tr><td>Dead air <strong>hidden</strong> by prefetch (the magic working)</td><td class="num"><strong>738.1 s</strong></td></tr>
+<tr><td>Times we guessed wrong (live stalls)</td><td class="num">9</td></tr>
+<tr><td>Cost of those misses — our <strong>realized regret</strong></td><td class="num"><strong>34.7 s</strong></td></tr>
+<tr><td>Share of the waiting we erased</td><td class="num"><strong>95.5%</strong></td></tr>
+</table>
+
+<p>Put together: we erased <strong>95.5%</strong> of the waiting. The 4.5% we left on the table is the price of guessing wrong.</p>
+
+<p>And here's the part that surprised us. We worried that counting <em>misses</em> might be misleading — surely a big document search costs more to miss than a quick database lookup, so a simple miss-count would hide the real pain. We checked. In these procedures, <strong>every fetch costs about the same — 3.86 seconds whether we caught it or missed it.</strong> A hit saves 3.86 s; a miss costs 3.86 s. So our simple "what fraction of turns had the data ready?" number isn't cutting any corners — it lines up with the seconds-of-stall number almost exactly (4.5% either way).</p>
+
+<div class="data-callout">The honest footnotes, because we'd rather say them than have you find them: (1) our oracle is generous — we let it prefetch <em>everything</em>. A fairer oracle with the <em>same limited budget</em> we have would also miss occasionally, so the true gap is <strong>at most</strong> 4.5%, probably a touch less. (2) This is the score of a system that has already <em>finished learning</em>: we trained the guesser on past conversations and froze it. We never measured the cost of learning on the fly — of trying a new guess to see if it pays off. That "try things and learn" version is the natural next step, and it's exactly where the bandit idea would earn its keep.</div>
+
+<p>So: the guessing paid off. Out of roughly twelve and a half minutes of fetching that <em>could</em> have been dead air, we hid all but <strong>35 seconds</strong> of it.</p>
 
 <h2 id="now">Where it stands</h2>
 
