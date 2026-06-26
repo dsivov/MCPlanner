@@ -50,6 +50,10 @@ async def schedule_retrieval_prefetch_bg(
             predictor = EmpiricalTrajectoryPredictor(
                 db=db, sop_ref=sop_ref, cohort=cohort or "", chosen_action=chosen_action,
                 min_supporting=min_supporting, mood=mood or None,
+                recency_half_life_days=mcts_cfg.predictor_recency_half_life_days,
+                shrinkage_kappa=mcts_cfg.predictor_shrinkage_kappa,
+                explore=mcts_cfg.predictor_explore,
+                explore_alpha0=mcts_cfg.predictor_explore_alpha0,
             )
             predictions = await predictor.predict(
                 max_offset=mcts_cfg.rollout_depth or 3,

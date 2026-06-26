@@ -62,6 +62,14 @@ def _load_sqlite_vec(dbapi_connection, _connection_record) -> None:
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("sqlite-vec load failed: %s", e)
+    # exp() is not a SQLite built-in; the empirical predictor uses it for recency-decayed
+    # weighting (SUM(reward * exp(-age/half_life))). Register math.exp as a scalar UDF.
+    try:
+        import math
+        real.create_function("exp", 1, math.exp, deterministic=True)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("exp() UDF registration failed: %s", e)
 
 
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)

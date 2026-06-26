@@ -23,6 +23,7 @@ The chat-route picks the right predictor based on what's available (router-patte
 from __future__ import annotations
 import asyncio
 import math
+import random
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -182,12 +183,29 @@ class EmpiricalTrajectoryPredictor(TrajectoryPredictor):
         chosen_action: str,
         min_supporting: int = 3,
         mood: str | None = None,
+        recency_half_life_days: float = 30.0,
+        shrinkage_kappa: float = 2.0,
+        explore: bool = False,
+        explore_alpha0: float = 0.3,
+        created_before: object | None = None,
     ):
         self.db = db
         self.sop_ref = sop_ref
         self.cohort = cohort
         self.chosen_action = chosen_action
         self.min_supporting = min_supporting
+        # Online-adaptation knobs (see MCTSConfig). Decay weights recent traces more so the
+        # predictor tracks drift; shrinkage regularizes sparse cells toward the SOP-level
+        # marginal; explore (off by default) replaces greedy top-K with Thompson sampling.
+        self._half_life = recency_half_life_days
+        self._kappa = max(0.0, shrinkage_kappa)
+        self._explore = explore
+        self._alpha0 = max(1e-6, explore_alpha0)
+        # Optional as-of cutoff: only count precedents created strictly before this timestamp.
+        # Used for temporal held-out evaluation (train on the past, test on the future); None
+        # in production (use all accumulated data).
+        self._created_before = created_before
+        self._prior_cache: dict[int, list[tuple[str, int, float]]] = {}
         # Phase-2 mood conditioning. When provided, the SQL primarily restricts to
         # precedents with matching (cohort, mood). Falls back through cohort-only,
         # sop-only on sparse hits — see `_lookup_distribution` and the fallback chain
@@ -254,9 +272,8 @@ class EmpiricalTrajectoryPredictor(TrajectoryPredictor):
                 count_total = sum(c for _, c, _ in dist)
                 if count_total < self.min_supporting:
                     continue
-                weight_total = sum(w for _, _, w in dist) or 1.0
-                for action, _count, weight in dist:
-                    prob = weight / weight_total
+                prior = await self._marginal_prior(offset) if self._kappa else {}
+                for action, prob in self._finalize_probs(dist, prior):
                     out.append(TrajectoryPrediction(
                         action=action, offset=offset, probability=prob, source=self.name,
                         predicted_user_state=hint if hint else None,
@@ -269,9 +286,8 @@ class EmpiricalTrajectoryPredictor(TrajectoryPredictor):
                     dist = await self._lookup_distribution(offset, cohort_required=False, state_hint=None, use_mood=False)
                 count_total = sum(c for _, c, _ in dist)
                 if count_total >= self.min_supporting:
-                    weight_total = sum(w for _, _, w in dist) or 1.0
-                    for action, _count, weight in dist:
-                        prob = weight / weight_total
+                    prior = await self._marginal_prior(offset) if self._kappa else {}
+                    for action, prob in self._finalize_probs(dist, prior):
                         out.append(TrajectoryPrediction(
                             action=action, offset=offset, probability=prob, source=self.name,
                             predicted_user_state=None,
@@ -314,6 +330,10 @@ class EmpiricalTrajectoryPredictor(TrajectoryPredictor):
         if use_mood and self.mood:
             mood_clause = "AND p.mood = :mood"
             params["mood"] = self.mood
+        asof_clause = ""
+        if self._created_before is not None:
+            asof_clause = "AND p.created_at < :created_before AND next_p.created_at < :created_before"
+            params["created_before"] = self._created_before
         # Success-weighting (2026-06-07): back-prop writes terminal_reward to every trace
         # on session end (success=1.0, abandoned=0.25, failure=0.0). The empirical
         # predictor used to count raw frequency (COUNT(*)), treating successful and failed
@@ -325,10 +345,19 @@ class EmpiricalTrajectoryPredictor(TrajectoryPredictor):
         # reward (current in-progress session) gets a neutral default so it neither
         # dominates nor vanishes.
         params["neutral_reward"] = 0.3
+        # Recency decay: weight each precedent by exp(-age_days / half_life) so the
+        # success-weighted `wsum` tracks drift in the action distribution. The raw `freq`
+        # (recall gate) stays undecayed so an old-but-real branch isn't gated out. When
+        # half_life <= 0, decay is disabled and the weight is just the reward (uniform age).
+        if self._half_life and self._half_life > 0:
+            params["half_life"] = float(self._half_life)
+            decay = "exp(-(julianday('now') - julianday(p.created_at)) / :half_life)"
+        else:
+            decay = "1.0"
         sql = text(f"""
             SELECT next_p.action,
                    COUNT(*) AS freq,
-                   SUM(COALESCE(next_p.terminal_reward, :neutral_reward)) AS wsum
+                   SUM(COALESCE(next_p.terminal_reward, :neutral_reward) * {decay}) AS wsum
             FROM precedent_traces p
             JOIN turns t                ON t.id = p.turn_id
             JOIN turns next_t           ON next_t.experiment_id = t.experiment_id
@@ -339,11 +368,55 @@ class EmpiricalTrajectoryPredictor(TrajectoryPredictor):
               {cohort_clause}
               {mood_clause}
               {state_clause}
+              {asof_clause}
             GROUP BY next_p.action
             ORDER BY wsum DESC
         """)
         res = await self.db.execute(sql, params)
         return [(row[0], int(row[1]), float(row[2] or 0.0)) for row in res.all()]
+
+    async def _marginal_prior(self, offset: int) -> dict[str, float]:
+        """SOP-level action marginal at this offset (cohort/state/mood-blind), normalized.
+        Used as the shrinkage target so a sparse (cohort,state,mood) cell falls back smoothly
+        toward the globally-likely next action rather than being trusted at face value."""
+        if offset not in self._prior_cache:
+            self._prior_cache[offset] = await self._lookup_distribution(
+                offset, cohort_required=False, state_hint=None, use_mood=False,
+            )
+        dist = self._prior_cache[offset]
+        total = sum(w for _, _, w in dist) or 1.0
+        return {a: w / total for a, _, w in dist}
+
+    def _finalize_probs(
+        self, dist: list[tuple[str, int, float]], prior: dict[str, float],
+    ) -> list[tuple[str, float]]:
+        """Turn a raw (action, count, decayed_weight) distribution into emitted probabilities,
+        applying shrinkage toward `prior` and (optionally) Thompson exploration.
+
+        Shrinkage (Dirichlet-prior smoothing toward the SOP marginal):
+            P(a) = (w_a + kappa * prior(a)) / (W + kappa),   W = sum(w_a)
+        Rich cells (W >> kappa) are unchanged; sparse cells are pulled toward the prior, and
+        plausible prior-only actions surface with small mass. With kappa=0 this is the plain
+        weight-normalized distribution.
+
+        Explore (flag-off): instead of the mean P(a), draw p ~ Dirichlet(alpha) with
+        alpha_a = w_a + kappa*prior(a) + alpha0, i.e. sample the posterior. Sparse cells
+        (small alphas) yield high-variance draws that occasionally elevate an uncertain
+        runner-up; rich cells concentrate and behave like the greedy mean."""
+        weights = {a: w for a, _, w in dist}
+        actions = set(weights) | set(prior)
+        if not actions:
+            return []
+        W = sum(weights.values())
+        kappa = self._kappa
+        num = {a: weights.get(a, 0.0) + kappa * prior.get(a, 0.0) for a in actions}
+        denom = (W + kappa) or 1.0
+        if not self._explore:
+            return [(a, num[a] / denom) for a in actions]
+        # Thompson: Dirichlet sample with concentration alpha_a = num_a + alpha0.
+        gammas = {a: random.gammavariate(num[a] + self._alpha0, 1.0) for a in actions}
+        gtot = sum(gammas.values()) or 1.0
+        return [(a, gammas[a] / gtot) for a in actions]
 
 
 # ----------------------------- Union of MCTS + Empirical ------------------------------

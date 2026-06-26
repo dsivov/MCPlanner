@@ -245,6 +245,22 @@ class MCTSConfig(BaseModel):
     # default (on coarse corpora the structured stub suffices; the value scales with corpus
     # granularity — see retrieval ablation). Runs off the critical path, slack-gated.
     use_llm_query_predictor: bool = False
+    # ---- Online-adaptive empirical predictor ----
+    # The empirical predictor counts precedent_traces; full-information labels (the conversation
+    # reveals the true next action every turn) make greedy counting near-optimal at warm state.
+    # These knobs make it adapt over time without a bandit's exploration overhead.
+    #   recency_half_life_days: weight each trace by exp(-age/half_life) so the predictor tracks
+    #     drift in the action distribution. <=0 disables decay (weight all history equally).
+    #   shrinkage_kappa: regularize a sparse (cohort,state,mood) cell toward the SOP-level action
+    #     marginal with this pseudo-count. 0 disables (hard backoff only). Improves cold start.
+    #   predictor_explore: Thompson sampling over the Dirichlet posterior of the counts instead of
+    #     greedy top-K — occasionally prefetches an uncertain runner-up. Cheap because the pool
+    #     tolerates mispredictions. OFF by default: its upside is narrow (sparse contexts) and must
+    #     be justified by the cold-start curve before defaulting on.
+    predictor_recency_half_life_days: float = 30.0
+    predictor_shrinkage_kappa: float = 2.0
+    predictor_explore: bool = False
+    predictor_explore_alpha0: float = 0.3
     # ---- Multi-tier router (Strategic-Supervisor-style fast paths) ----
     # When enabled, after classifying cohort+state the router checks precedent_traces for
     # historical agreement at this (cohort, state) and routes to one of three tiers:
