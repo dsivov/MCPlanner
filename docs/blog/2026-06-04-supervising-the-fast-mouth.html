@@ -236,6 +236,7 @@
     <li><a href="#latency">The latency story (and what it taught us)</a></li>
     <li><a href="#mcts-value">Did the clever planner actually pay off?</a></li>
     <li><a href="#regret">Putting a number on the misses</a></li>
+    <li><a href="#learn">We built the "try things and learn" version. It didn't try.</a></li>
     <li><a href="#now">Where it stands</a></li>
     <li><a href="#refs">Sources, influences, prior art</a></li>
   </ol>
@@ -1052,6 +1053,59 @@ was provided — do NOT force irrelevant data into the response.
 <div class="data-callout">The honest footnotes, because we'd rather say them than have you find them: (1) our oracle is generous — we let it prefetch <em>everything</em>. A fairer oracle with the <em>same limited budget</em> we have would also miss occasionally, so the true gap is <strong>at most</strong> 4.5%, probably a touch less. (2) This is the score of a system that has already <em>finished learning</em>: we trained the guesser on past conversations and froze it. We never measured the cost of learning on the fly — of trying a new guess to see if it pays off. That "try things and learn" version is the natural next step, and it's exactly where the bandit idea would earn its keep.</div>
 
 <p>So: the guessing paid off. Out of roughly twelve and a half minutes of fetching that <em>could</em> have been dead air, we hid all but <strong>35 seconds</strong> of it.</p>
+
+<h2 id="learn">We built the "try things and learn" version. It didn't try.</h2>
+
+<p>The last section ended on a promise: the natural next step is a guesser that <em>learns as it goes</em> — and that's where the textbook "slot machine" idea (multi-armed bandits, the thing a reviewer nudged us toward) is supposed to earn its keep. So we built it. And it taught us something we didn't expect.</p>
+
+<p>There are really two different things tangled up in "learn as you go," and pulling them apart is the whole story:</p>
+
+<ul>
+<li><strong>Learning</strong> — keep your estimates fresh. Two cheap pieces here. <em>Decay:</em> weight recent conversations more, so the guesser tracks changes instead of being anchored to ancient history. <em>Shrinkage:</em> when a specific situation is rare (a cohort+mood we've barely seen), don't trust its thin data at face value — lean on the SOP-wide average until the specific evidence builds up. Neither of these "tries" anything; they just estimate better.</li>
+<li><strong>Trying</strong> — deliberately prefetch something you're <em>unsure</em> about, to find out whether it pays off. This is the actual bandit move (Thompson sampling). We built it too, but left it switched off by default — because we wanted to measure whether it helps before trusting it.</li>
+</ul>
+
+<p>To measure honestly we did the obvious thing: <strong>train on the past, test on the future.</strong> Order every conversation by time, hide the most recent fifth as a test set, and feed the guesser more and more history — then watch how well it predicts the held-out future as it learns. Here's the curve:</p>
+
+<figure style="margin:1.5em 0;text-align:center;">
+<svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg" style="max-width:560px;width:100%;height:auto;" role="img" aria-label="Cold-start convergence curve">
+  <defs><style>
+    .ax{stroke:#9aa0ad;stroke-width:1}.grid{stroke:#e7e2d9;stroke-width:1}
+    .axt{font-family:-apple-system,sans-serif;font-size:11px;fill:#5a6071}
+    .lbl{font-family:-apple-system,sans-serif;font-size:11px;fill:#5a6071}
+  </style></defs>
+  <line class="grid" x1="60" y1="227.7" x2="500" y2="227.7"/><line class="grid" x1="60" y1="173.0" x2="500" y2="173.0"/>
+  <line class="grid" x1="60" y1="118.4" x2="500" y2="118.4"/><line class="grid" x1="60" y1="63.7" x2="500" y2="63.7"/>
+  <text class="axt" x="54" y="231" text-anchor="end">40</text><text class="axt" x="54" y="176" text-anchor="end">50</text>
+  <text class="axt" x="54" y="122" text-anchor="end">60</text><text class="axt" x="54" y="67" text-anchor="end">70</text>
+  <line class="ax" x1="60" y1="20" x2="60" y2="255"/><line class="ax" x1="60" y1="255" x2="500" y2="255"/>
+  <text class="axt" x="60" y="270" text-anchor="middle">10</text><text class="axt" x="148" y="270" text-anchor="middle">20</text>
+  <text class="axt" x="236" y="270" text-anchor="middle">35</text><text class="axt" x="324" y="270" text-anchor="middle">50</text>
+  <text class="axt" x="412" y="270" text-anchor="middle">65</text><text class="axt" x="500" y="270" text-anchor="middle">80</text>
+  <text class="lbl" x="280" y="288" text-anchor="middle">training history (% of accumulated conversations)</text>
+  <text class="lbl" x="16" y="140" text-anchor="middle" transform="rotate(-90 16 140)">held-out recall@3 (%)</text>
+  <polyline fill="none" stroke="#5a6071" stroke-width="2" points="60,242.4 148,138.1 236,84.0 324,51.2 412,47.9 500,45.7"/>
+  <g fill="#5a6071"><circle cx="60" cy="242.4" r="3"/><circle cx="148" cy="138.1" r="3"/><circle cx="236" cy="84.0" r="3"/><circle cx="324" cy="51.2" r="3"/><circle cx="412" cy="47.9" r="3"/><circle cx="500" cy="45.7" r="3"/></g>
+  <polyline fill="none" stroke="#2A4A7F" stroke-width="2.5" points="60,176.3 148,100.3 236,60.4 324,52.8 412,47.9 500,41.3"/>
+  <g fill="#2A4A7F"><circle cx="60" cy="176.3" r="3.2"/><circle cx="148" cy="100.3" r="3.2"/><circle cx="236" cy="60.4" r="3.2"/><circle cx="324" cy="52.8" r="3.2"/><circle cx="412" cy="47.9" r="3.2"/><circle cx="500" cy="41.3" r="3.2"/></g>
+  <polyline fill="none" stroke="#6A4F8A" stroke-width="1.8" stroke-dasharray="5 3" points="60,176.3 148,100.3 236,62.1 324,51.2 412,46.8 500,39.7"/>
+  <line x1="60" y1="242.4" x2="60" y2="176.3" stroke="#C4632C" stroke-width="1.5"/>
+  <text class="lbl" x="66" y="208" fill="#C4632C" font-weight="700">+12 pp</text>
+  <g>
+    <line x1="306" y1="222" x2="332" y2="222" stroke="#2A4A7F" stroke-width="2.5"/><text class="lbl" x="337" y="226">decay + shrinkage (shipped)</text>
+    <line x1="306" y1="238" x2="332" y2="238" stroke="#5a6071" stroke-width="2"/><text class="lbl" x="337" y="242">baseline (equal weights)</text>
+    <line x1="306" y1="254" x2="332" y2="254" stroke="#6A4F8A" stroke-width="1.8" stroke-dasharray="5 3"/><text class="lbl" x="337" y="258">+ Thompson explore</text>
+  </g>
+</svg>
+</figure>
+
+<p>Two things to read off it. First, <strong>the learning pieces are a real win exactly when you'd hope — at the start.</strong> With only 10% of the history, decay+shrinkage lifts the guesser from 37% to <strong>49%</strong> — a 12-point head start, because leaning on the SOP-wide average beats trusting almost no data. That lead shrinks as evidence piles up, and by the time the guesser is warmed up the two lines sit on top of each other (~73%). It helps when it's cold and gets out of the way when it's warm. That's exactly the behavior that lets us turn it on by default and forget about it.</p>
+
+<p>Second — the punchline — <strong>the "try things" part added nothing.</strong> The dashed line (with Thompson exploration switched on) sits exactly on the shipped line, even at the cold-start left edge where exploration is supposed to matter most: 49.4% either way.</p>
+
+<div class="data-callout"><strong>Why doesn't exploration help?</strong> Because of a quirk that makes our problem gentler than a real slot machine. In a slot machine you only learn about the lever you actually pull — so you have to <em>spend</em> pulls exploring, or you'll never discover a better lever. But our guesser isn't like that: <strong>the conversation tells us the right answer every single turn, for free, whether or not we prefetched it.</strong> A wrong guess that forces a live lookup still <em>reveals</em> what the user actually needed. So every turn is a labeled example handed to us. There's no hidden lever to go discover — which means there's nothing for exploration to do. The only real weakness (rare, barely-seen situations) is already covered by leaning on the average. So this isn't really a slot-machine problem at all; it's ordinary learning from labeled examples, with a budget.</div>
+
+<p>Which is the same lesson MCTS taught us, one rung up the ladder: the clever, expensive mechanism — this time deliberate exploration — lost to the boring one. We shipped the boring one (decay + shrinkage), kept the clever one built-but-off, and have a graph that says exactly why.</p>
 
 <h2 id="now">Where it stands</h2>
 
