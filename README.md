@@ -144,10 +144,18 @@ Realtime token.
 
 ## Reproducing the numbers
 
+**On the database:** `data/planner.db` is **not shipped** — a fresh clone starts with an
+empty local DB that fills as you run sessions (it accumulates research traces over time, which
+is why it is gitignored, not because it is required to read the repo). The committed artifacts
+that back the paper are the `bench_*.jsonl` session outputs and `paper/table1_sessions.jsonl`
+(true JSONL, one session object per line — the export behind Table 1). Full benchmark
+*reproduction* additionally requires OpenAI API calls and an accumulated trace DB, so the
+committed JSONL artifacts are the auditable record; live re-runs will differ in the stochastic
+cells (`N=5`).
+
 The dated files in `notes/` are the lab notebook — each major claim links to a
 verification run (`notes/2026-06-03-pool-cache-N5-verification.md`,
-`notes/2026-06-02-data-prefetch-cross-SOP-N5.md`, etc.) and the corresponding
-`bench_*.jsonl`. `paper/table1_sessions.jsonl` is the export behind Table 1.
+`notes/2026-06-02-data-prefetch-cross-SOP-N5.md`, etc.) and the corresponding `bench_*.jsonl`.
 
 > The fine/large RAG corpora under `data/rag_corpus/` are **constructed stress-tests**
 > (realistic situation-variants we authored to probe corpus granularity), not production

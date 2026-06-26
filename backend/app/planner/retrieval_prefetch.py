@@ -14,6 +14,7 @@ preempted by the live turn (PASTE-style scheduler, llm/scheduler.py).
 """
 from __future__ import annotations
 import asyncio
+import logging
 from typing import Optional
 
 from ..schemas import TaskDefinition, MCTSConfig
@@ -23,6 +24,8 @@ from .trajectory_predictor import (
 )
 from .next_utterance import predict_next_utterance
 from .data_prefetch import manager as data_prefetch_manager
+
+_log = logging.getLogger(__name__)
 
 
 async def schedule_retrieval_prefetch_bg(
@@ -115,7 +118,17 @@ async def schedule_retrieval_prefetch_bg(
         try:
             async with SessionLocal() as db:
                 await logger.flush(db, turn_id=None)
-        except Exception:
-            pass
-    except Exception:
-        pass  # prefetch is best-effort; never break the session
+        except Exception as e:
+            _log.warning(
+                "retrieval_prefetch logger.flush failed: experiment_id=%s turn=%s source=empirical err=%s: %s",
+                experiment_id, current_turn_index, type(e).__name__, e,
+            )
+    except Exception as e:
+        # Prefetch is best-effort and must never break the live session, but a silent failure
+        # here can quietly bias hit-rate/latency measurements (a dropped predictor or fetch is
+        # invisible). Log a structured event so benchmark summaries can count these.
+        _log.warning(
+            "retrieval_prefetch failed: experiment_id=%s turn=%s cohort=%s state=%s action=%s "
+            "source=empirical err=%s: %s",
+            experiment_id, current_turn_index, cohort, state, chosen_action, type(e).__name__, e,
+        )
